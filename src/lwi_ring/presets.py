@@ -1,11 +1,11 @@
-"""Configuration presets of the studies that are set-up rules rather than driver code (pure dict transforms; nothing here runs).
+"""Configuration presets that are set-up rules rather than driver code (pure dict transforms; nothing here runs).
 
-* rescale_energy (scripts/csr400_cfg.py, csrdyn400_cfg.py; csr-dyn400): move a case to another kinetic energy with the solenoid field
-  times the rigidity ratio and the population times beta^2 gamma^3 (equal analytic space-charge strength), nothing else changed.
-* field_scaled (scripts/csrrem_cfg.py HF2/HF15, csrrm2_cfg.py; csr-remedy, csr-remedy2): the higher-field lattices re-matched to the
-  working point: solenoid field times `factor`, the arcs re-solved by the driver for the tune integer + fractional part, natural
-  chromaticity -Q. The two used presets are FIELD_2X and FIELD_1P5X (baseline 0.135 T, Q = 4.38, 35 m straights).
-* station_positions (csrrem_cfg.py POS): one dipole station per column kept inside a sub-column for dyn_resets in {1, 2, 4, 7}.
+* rescale_energy: move a case to another kinetic energy with the solenoid field times the rigidity ratio and the population times
+  beta^2 gamma^3 (equal analytic space-charge strength), nothing else changed.
+* FIELD_2X, FIELD_1P5X (applied with field_scaled): higher-field lattices re-matched to the working point: solenoid field times the
+  factor, the arcs re-solved by the driver for the tune integer + fractional part, natural chromaticity -Q (baseline 0.135 T,
+  Q = 4.38, 35 m straights).
+* station_positions: one dipole station per column kept inside a sub-column for dyn_resets in {1, 2, 4, 7}.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def brho(t_mev: float) -> float:
 
 
 def rescale_energy(cfg: dict, energy_mev: float) -> dict:
-    """The csr400 / csr-dyn400 move of a configuration (dict) to another kinetic energy (see the module doc)."""
+    """Move a configuration (dict) to another kinetic energy (see the module doc)."""
     e0 = cfg.get("energy_mev", 20.0)
     out = dict(cfg, energy_mev=energy_mev, population=cfg.get("population", 1e12) * beta2gamma3(energy_mev) / beta2gamma3(e0))
     if cfg.get("solenoid_bz_t"):

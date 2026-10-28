@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lwi-ring"
 version = "0.2.0"
-description = "Compensated storage ring driver (native strong-strong PIC on the LW Integrator's PIC core): every study feature behind a Config option"
+description = "Compensated storage ring driver: native strong-strong PIC on the LW Integrator's PIC core, every feature behind a Config option"
 readme = "README.md"
 authors = [{name = "Ben Folsom"}]
 requires-python = ">=3.10"
 license = {text = "GPL-3.0"}
 # core.pic (backend selection, kernels, Species) comes from the LW Integrator (package lw-integrator, which installs `core`). It is not
-# on an index: install it from its checkout first (pip install -e ~/work/extracurr/LW_integrator) or put the checkout on PYTHONPATH.
+# on an index: install it from its checkout first (pip install -e path/to/LW_integrator) or put the checkout on PYTHONPATH.
 dependencies = ["numpy", "scipy", "numba"]
 
 [project.optional-dependencies]

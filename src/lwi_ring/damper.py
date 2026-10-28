@@ -9,7 +9,7 @@ shift + damper_delay_turns * steps_per_turn steps earlier (shift = path between 
 dx' = kappa_x x_read, dy' = kappa_y y_read.  The planes are independent (lab-frame x and y are uncoupled at the arcs to the few per cent
 that the gradient errors cause).  Theory: the amplitude of a coherent oscillation changes by -(kappa/2) sqrt(beta_p beta_k) sin(psi) per
 turn, with psi the coherent betatron phase advance from the pickup to the kick (including whole turns), so kappa = G / (sqrt(beta_p beta_k) sin psi)
-damps with rate G/2 per turn, damping time 2/G turns.  scripts/csrd_lin.py computes psi and beta from the linear centroid model of the
+damps with rate G/2 per turn, damping time 2/G turns.  psi and beta follow from the linear centroid model of the
 columns, which depends on the intensity.
 
 Diagnostics.  coherent_row() bins the protons in `diag_bins` lab-position bins and reports the rms and maximum displacement of the bin

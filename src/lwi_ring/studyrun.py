@@ -1,9 +1,8 @@
-"""The study runner: one driver.run case with the column diagnostics of the m = 2 studies (merged scripts csrm2_run.py, csrdyn400_run.py,
-csrrem_run.py, csrrm2_run.py, csrdp_run.py, csrwr_run.py and the plain csrrcd_run.py).
+"""Runner: one driver.run case with m = 0 / m = 2 column diagnostics, optional early stop and profile-shape diagnostic.
 
 usage: lwi-ring-run CONFIG.json NAME [key=value ...] [--diag-every=N] [--stop-growth=X] [--shape] [--no-diag]  -> $LWI_RING_OUT/NAME
 Takes the solver lock of the output root (BlockingIOError at once if held); an existing NAME is replaced. Diagnostics are written to
-NAME/m2diag.jsonl, one row per turn (none with --no-diag, the csrrcd_run.py behaviour):
+NAME/m2diag.jsonl, one row per turn (none with --no-diag):
   * every N field solves (default 4) the protons (and alive electrons) are binned by column (lattice_periods) and by position in the cell
     (8 bins of cell/8); positions are taken from the column axis (closed orbit) and the bin sums of w, w z, w z^2, w |z|^2 (z = x + i y)
     are formed per sample; per sample and bin the centred moments V = <|z - zbar|^2> and Q = <(z - zbar)^2> (complex ellipse) give,
@@ -11,9 +10,9 @@ NAME/m2diag.jsonl, one row per turn (none with --no-diag, the csrrcd_run.py beha
     cross terms Q_e conj(Q_p);
   * at the end of each turn the protons' weighted rms, projected emittances and the 4-D rms emittance det(Sigma)^(1/4) of
     (x, Px, y, Py) with canonical momenta P = u + (e B_z / 2 m c) (-y, x) about the machine axis (invariant through the solenoids);
-  * --shape (csrdp_run.py, csrwr_run.py): "shape", per column and species, the weighted mean over the 7 in-column bins of <r^4>/<r^2>^2
+  * --shape: "shape", per column and species, the weighted mean over the 7 in-column bins of <r^4>/<r^2>^2
     about the bin centroid (flat-top 1.33, painted p = -0.5 1.43, Gaussian 2; hollow below 1.33);
-  * --stop-growth=X (csrrem_run.py and later): the run ends after the first turn whose 4-D canonical emittance exceeds (1 + X) times its
+  * --stop-growth=X: the run ends after the first turn whose 4-D canonical emittance exceeds (1 + X) times its
     initial value (records up to that turn kept; NAME/stop.json written; status "stopped").
 The driver itself is unchanged by the diagnostics (they only read the particles). The wall-feedback record NAME/wallfb.jsonl is written by
 the driver when wfb_enable is set.
@@ -51,7 +50,7 @@ class ColumnDiagnostics:
         self.E4 = []
         self.reset()
 
-    # ---- accumulators (csrm2_run.py Acc) ---------------------------------------------------------------
+    # ---- accumulators ---------------------------------------------------------------
     def reset(self):
         z = lambda dt=float: np.zeros((2, self.NB, self.NS), dt)
         self.n = 0

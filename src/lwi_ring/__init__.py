@@ -1,20 +1,19 @@
-"""lwi_ring: the compensated storage ring's native-PIC ring driver as one versioned package.
+"""lwi_ring: a native strong-strong PIC ring driver for space-charge-compensated proton rings, as one versioned package.
 
 Built on the LW Integrator's PIC core (``core.pic``: backend selection, deposit/gather/Boris kernels, ``Species``), used as a library.
-Every feature of the study's driver copies is a ``Config`` option; all defaults reproduce the study's ring_driver/ring_driver.py bit
-for bit. Modules:
+Every feature is a ``Config`` option and all defaults reproduce the baseline ring driver bit for bit. Modules:
 
     driver        Config, run (single-turn-record driver, dynamic electrons), RingFields, ElectronLens, ColumnDrift, Racetrack, ...
     many_turn     many-turn tracking with an absorbing aperture, checkpoints and resume
     edyn_columns  self-consistent (dynamic) electron columns
     wallfb        segmented wall-electrode feedback
     damper        slice-by-slice transverse damper and the "coherent" diagnostics
-    studyrun      the study runner (m = 0 / m = 2 column diagnostics, early stop, profile-shape diagnostic)
-    presets       energy rescaling and field-scaled lattice presets used by the studies
+    studyrun      runner with m = 0 / m = 2 column diagnostics, early stop and profile-shape diagnostic
+    presets       energy rescaling and field-scaled lattice presets
 """
 __version__ = "0.2.0"
 
-# Versions of the source copies merged into this release (sha256 of their ring_driver.py, first 12 hex digits).
+# Versions of the earlier driver copies merged into this package (sha256 of their ring_driver.py, first 12 hex digits).
 MERGED_SOURCES = {
     "ring_driver (canonical)": "a0d862d6a3db",
     "dipole": "f90b3ad026be",
@@ -29,5 +28,5 @@ MERGED_SOURCES = {
     "dynprof": "a7d451acab31",
     "wallfb": "725d7d88292f",
 }
-# wallfb.py is the csr-wallring copy as corrected on 2026-10-27 00:53 (l = 1 gain 1/(4 pi eps0 ...), was 1/(2 pi eps0 ...)).
+# wallfb.py as corrected on 2026-10-27 (l = 1 gain 1/(4 pi eps0 ...), was 1/(2 pi eps0 ...)).
 WALLFB_SHA256 = "be3ce4911185"

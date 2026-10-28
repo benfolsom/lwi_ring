@@ -26,7 +26,8 @@ LATER = {"canonical": ("diag_bins", "diag_bin_centroids", "column_recentre_stati
          "stage3d": ("diag_bin_centroids", "column_recentre_stations"),
          "drift": ("column_recentre_stations",)}
 
-# Source copies (relative to the study directory) and the runner scripts of the study cases.
+# Source copies (relative to the study directory) and the runner scripts of the study cases. These paths are used only by
+# tools/make_references.py to regenerate the reference digests; the tests themselves do not need them.
 SOURCES = {
     "canonical": "ring_driver",
     "dipole": "results_local/dipole/driver/ring_driver",
