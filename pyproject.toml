@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lwi-ring"
+version = "0.1.0"
+description = "Compensated storage ring driver (native strong-strong PIC on the LW Integrator's PIC core): every study feature behind a Config option"
+readme = "README.md"
+authors = [{name = "Ben Folsom"}]
+requires-python = ">=3.10"
+# core.pic (backend selection, kernels, Species) comes from the LW Integrator (package lw-integrator, which installs `core`). It is not
+# on an index: install it from its checkout first (pip install -e ~/work/extracurr/LW_integrator) or put the checkout on PYTHONPATH.
+dependencies = ["numpy", "scipy", "numba"]
+
+[project.optional-dependencies]
+lwi = ["lw-integrator>=0.12.3"]
+mlx = ["mlx"]
+test = ["pytest>=7"]
+
+[project.scripts]
+lwi-ring-driver = "lwi_ring.driver:main"
+lwi-ring-many-turn = "lwi_ring.many_turn:main"
+lwi-ring-run = "lwi_ring.studyrun:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: longer bit-identity cases (a few minutes each on one core); run with -m slow or --runslow",
+    "mlx: needs the MLX GPU backend; never selected by default",
+]
+addopts = "-m 'not slow and not mlx'"
