@@ -11,6 +11,13 @@ Every feature that a study added in its own copy is an explicit `Config` option.
 Version 0.1.0 merges the copies listed in `lwi_ring.MERGED_SOURCES`: canonical → dipole → stage3d → drift → recentre_dyn → recentre →
 esize, m2 (= dyn400) → remedy2 → remedy, remedy2 → dynprof → wallfb.
 
+Version 0.2.0 adds two study patches, both inert at their defaults (all fast and slow bit-identity cases unchanged):
+- **recycled electrons** (`recycle_*`, `report_recycled_electrons.md`): electrons leaving column k pass a proton-free transport
+  (strain hold, centroid re-centring, rotation, current loss, scraping, monitor noise) and re-enter column k + `recycle_stride`;
+  fresh guns only at stream starts (`tests/test_recycle.py`);
+- **ramp** (`ramp_shape` "dual" and "table", `ramp_energy_table`, `ramp_solenoid_follow`, `ramp_column_sigma`, `report_ramp.md`):
+  dual-harmonic and tabulated magnet cycles, and self-consistent (dynamic) electrons through an energy ramp (`tests/test_ramp_csr.py`).
+
 ## Install
 
 ```sh

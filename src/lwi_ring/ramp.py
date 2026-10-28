@@ -40,7 +40,7 @@ MP = constants.proton_mass
 ME = constants.electron_mass
 RP = E**2 / (4 * math.pi * constants.epsilon_0 * MP * C**2)        # classical proton radius
 
-SHAPES = ("linear", "sine")
+SHAPES = ("linear", "sine", "dual", "table")
 RF_PROGRAMMES = ("constant", "min_phase", "table")
 COMP_PROGRAMMES = ("constant", "taper", "table")
 COMP_SCALINGS = ("adiabatic", "fixed_size")
@@ -56,7 +56,7 @@ def validate(cfg) -> None:
     if cfg.ramp_final_energy_mev is None:
         if (cfg.ramp_time_s or cfg.ramp_comp_programme != "constant" or cfg.rf_programme != "constant"
                 or cfg.ramp_solenoid_follow or cfg.ramp_electron_beta_error or cfg.ramp_column_sigma != "fixed"
-                or cfg.ramp_quad_scale != 1.0):
+                or cfg.ramp_quad_scale != 1.0 or cfg.ramp_dual_alpha or cfg.ramp_energy_table is not None):
             raise ValueError("ramp options need ramp_final_energy_mev")
         return
     if not (math.isfinite(cfg.ramp_final_energy_mev) and cfg.ramp_final_energy_mev > cfg.energy_mev):
@@ -72,8 +72,25 @@ def validate(cfg) -> None:
         raise ValueError("a ramp needs gamma_t and an RF voltage")
     if cfg.rf_dE_turn_ev is not None:
         raise ValueError("the ramp sets the energy gain per turn itself: leave rf_dE_turn_ev unset")
-    if cfg.opposing != "absent" or cfg.column_electrons == "dynamic":
-        raise ValueError("the ramp is implemented for a proton-only beam with rigid columns or lenses")
+    if cfg.opposing != "absent":
+        raise ValueError("the ramp is implemented for a proton-only beam (rigid or dynamic columns, or lenses)")
+    if cfg.column_electrons == "dynamic" and (cfg.wfb_enable or cfg.rem_birth_track):
+        raise ValueError("a ramp with dynamic electrons supports neither wall feedback nor rem_birth_track")
+    if cfg.ramp_shape == "table":
+        tab = cfg.ramp_energy_table
+        if not (tab and len(tab) >= 2 and all(len(r) == 2 for r in tab)):
+            raise ValueError("ramp_energy_table: [[t_s, kinetic energy MeV], ...] (at least two rows)")
+        tt, ee = np.asarray(tab, float).T
+        if not (tt[0] == 0 and np.all(np.diff(tt) > 0) and np.all(np.diff(ee) >= 0) and ee[0] == cfg.energy_mev
+                and ee[-1] == cfg.ramp_final_energy_mev and tt[-1] == cfg.ramp_time_s):
+            raise ValueError("ramp_energy_table: t from 0 to ramp_time_s ascending, energy non-decreasing from energy_mev to "
+                             "ramp_final_energy_mev")
+    elif cfg.ramp_energy_table is not None:
+        raise ValueError("ramp_energy_table needs ramp_shape = table")
+    if cfg.ramp_shape == "dual" and not 0 <= cfg.ramp_dual_alpha <= 1:
+        raise ValueError("ramp_dual_alpha in [0, 1] (monotonic programme)")
+    if cfg.ramp_shape != "dual" and cfg.ramp_dual_alpha:
+        raise ValueError("ramp_dual_alpha needs ramp_shape = dual")
     if cfg.ramp_comp_programme != "constant" and not cfg.lens_enabled():
         raise ValueError("a compensation programme needs electron columns or lenses")
     if cfg.ramp_comp_ring_average and not (cfg.columns_enabled() and cfg.column_local_fraction is not None):
@@ -100,11 +117,20 @@ def momentum_programme(cfg):
     """gamma(t) of the reference particle."""
     g0, g1 = gamma_of_energy(cfg.energy_mev), gamma_of_energy(cfg.ramp_final_energy_mev)
     p0, p1 = math.sqrt(g0**2 - 1), math.sqrt(g1**2 - 1)
+    if cfg.ramp_shape == "table":
+        tt, ee = (np.asarray(c, float) for c in zip(*cfg.ramp_energy_table))
+
+        def gamma_table(t: float) -> float:
+            return gamma_of_energy(float(np.interp(t, tt, ee)))
+        return gamma_table
 
     def gamma_at(t: float) -> float:
         s = min(max(t / cfg.ramp_time_s, 0.0), 1.0)
         if cfg.ramp_shape == "linear":
             return g0 + (g1 - g0) * s
+        if cfg.ramp_shape == "dual":            # second magnet harmonic: start (1 + alpha) times steeper, same end points
+            b = 0.5 * ((1 - math.cos(math.pi * s)) + cfg.ramp_dual_alpha / 4 * (1 - math.cos(2 * math.pi * s)))
+            return math.sqrt(1 + (p0 + (p1 - p0) * b)**2)
         return math.sqrt(1 + (p0 + (p1 - p0) * 0.5 * (1 - math.cos(math.pi * s)))**2)
     return gamma_at
 
@@ -136,6 +162,7 @@ class Ramp:
         validate(cfg)
         self.cfg, self.p, self.lon, self.track, self.lens, self.solver = cfg, p, lon, track, lens, solver
         self.landau = landau
+        self.dyn = None                                # DynamicColumns (column_electrons = dynamic), set by the run loop
         self.gamma_at = momentum_programme(cfg)
         self.t = 0.0                                   # lab time at the start of the next step
         self.beta0, self.gamma0 = p["beta"], p["gamma"]
@@ -231,6 +258,9 @@ class Ramp:
             self.f = self.fraction_at(self.t + 0.5 * dt, lon.gamma)
             self.lens.set_ramp(beta_e=self.beta * (1 + cfg.ramp_electron_beta_error), fraction=self.f * self.ring_to_local,
                                sigma_scale=self.sigma_scale)
+            if self.dyn is not None:
+                self.dyn.set_ramp(local=self.f * self.ring_to_local, field_scale=self.b_scale, sigma_scale=self.sigma_scale,
+                                  gamma=self.gamma, beta=self.beta)
         self.dt = dt
         return dt
 

@@ -54,6 +54,12 @@ Model, in the lab frame of the ring driver:
   quantile u = 1 - exp(-|n|^2 / 2) of each standard-normal pair are kept), dyn_size_ratio and dyn_ellipticity apply a fixed linear map
   to the unit draw; the birth-size rules (dyn_birth_sigma) then scale it as for the Gaussian.
 
+* Recycled electrons (Config.recycle_stride = d > 0; report_recycled_electrons.md; inert at the default 0): the electrons leaving a
+  column keep their exit offset from the column axis and are re-born, through a parametrised proton-free transport map (rotation,
+  centroid phase, centroid and strain cleaning, scraping, current loss; see Config), in column k + d by the same (paired) index, i.e.
+  with the same proton slice. Fresh electrons only at stream starts (Recycler.fresh); the slice statistics of the map use the stored
+  exits of the window recycle_window_m around the slice (by exit step), all of which have left column k before the slice re-enters.
+
 Not included: cyclotron/Larmor radius (thermal electrons), transverse momentum, electron-electron
 collisions, the electrons' own centrifugal and curvature drifts in the arcs.
 """
@@ -115,6 +121,9 @@ class DynamicColumns:
         self.track_on = bool(cfg.rem_birth_track) or cfg.rem_birth_ratio != 1.0
         self.ncall = 0
         self.track_log: list = []
+        self.rc = Recycler(cfg, lens) if cfg.recycle_stride else None
+        self.field_scale = 1.0                            # ramp: confining-field scale (ramp_solenoid_follow)
+        self.ramp_sigma = 1.0                             # ramp: fixed gun size relative to injection (ramp_column_sigma)
         self.m2 = float(cfg.column_recentre_m2)
         self.dip = float(cfg.column_recentre_dipole)
         self.K = int(cfg.column_recentre_stations)
@@ -159,13 +168,24 @@ class DynamicColumns:
             self.stat = dict(n=0, d2=0.0, k2=0.0, electrons=0, resid2=0.0, rows=0)
             self.window: dict[str, tuple] = {}         # per electron species: the previous step's per-station fit sums
 
+    # ---- energy ramp (ramp.Ramp.begin_step; inert without a ramp) -----------------------------------
+    def set_ramp(self, local: float, field_scale: float, sigma_scale: float, gamma: float, beta: float) -> None:
+        """Ramp state of the step: local compensation of new births and of live electrons (weights follow the proton population
+        each step), confining-field scale, fixed gun size scale, and the station side-kick rigidity."""
+        self.local, self.field_scale, self.ramp_sigma = local, field_scale, sigma_scale
+        if self.K:
+            from scipy.constants import elementary_charge as E, proton_mass as MP
+            self.side = self.cfg.column_recentre_side_kick * abs(self.cfg.solenoid_bz_t * field_scale) * E / (MP * C * gamma * beta)
+            self.pmc = gamma * beta
+
     # ---- field of the confining solenoid -------------------------------------------------------
     def bz_at(self, z: np.ndarray) -> np.ndarray:
         """Signed axial field (T) at lab positions z: the lattice solenoid with its polarity, else column_b_t."""
         if self.track is not None and self.cfg.solenoid_bz_t:
             fraction = self.track.overlaps(z, np.ones_like(z), 1.0)
-            return self.cfg.solenoid_bz_t * (fraction * self.track.sign).sum(axis=1)
-        return np.full(len(z), self.cfg.column_b_t)
+            bz = self.cfg.solenoid_bz_t * (fraction * self.track.sign).sum(axis=1)
+            return bz * self.field_scale if self.field_scale != 1.0 else bz
+        return np.full(len(z), self.cfg.column_b_t * self.field_scale if self.field_scale != 1.0 else self.cfg.column_b_t)
 
     # ---- species ---------------------------------------------------------------------------------
     def create(self, beams: list, meta: list) -> None:
@@ -205,6 +225,8 @@ class DynamicColumns:
                     self.pend_q[e.name] = np.zeros(n, complex)
                     self.pend_ok[e.name] = np.zeros(n, bool)
                     self.psegment[e.name] = np.full(n, -1)
+            if self.rc:
+                self.rc.create(e.name, n)
             new_beams.append(e)
             new_meta.append(dict(role="electron", bunch=info["bunch"], design_z_m=info["design_z_m"], direction=1,
                                  slice_id=info["slice_id"], matched_variance=0.,
@@ -215,6 +237,8 @@ class DynamicColumns:
     def update(self, beams: list, meta: list) -> None:
         """Birth electrons whose proton is in a section; remove electrons outside every section."""
         by_name = {s.name: s for s in beams}
+        if self.rc:
+            self.rc.step += 1
         if self.cfg.rem_birth_track:
             if self.ncall % self.cfg.steps_per_turn == 0:
                 self.track_size(beams)
@@ -229,6 +253,8 @@ class DynamicColumns:
             gone = e.alive & ~inside_electron
             if self.resets > 1:
                 gone |= e.alive & (self.sub_index(e.position_m[:, 2]) != self.subid[e.name])
+            if self.rc:
+                self.rc.store(e, gone)
             e.alive &= ~gone
             born = ~e.alive & self.lens.inside(proton.position_m[:, 2]) & (proton.population > 0)
             if born.any():
@@ -239,6 +265,8 @@ class DynamicColumns:
                     xy = self.normals[proton.name][born] * np.reshape(sigma, (-1, 1))
                 else:
                     xy = self.birth_xy(proton, born, z, axis)
+                if self.rc:
+                    xy = self.rc.reborn(e, proton, born, z, xy)
                 e.position_m[born, :2] = xy if axis is None else xy + axis
                 if self.resets > 1:
                     self.subid[e.name][born] = self.sub_index(z)
@@ -254,6 +282,8 @@ class DynamicColumns:
             if self.K:
                 self.recentre(e, proton, born)
             weight = np.where(e.alive, self.local * proton.population, 0.0)
+            if self.rc:
+                weight = weight * self.rc.fac[e.name]
             e.population = weight
             idle = ~e.alive
             if idle.any():
@@ -274,6 +304,8 @@ class DynamicColumns:
         if self.cfg.dyn_birth_sigma == "fixed":
             if self.track_on:
                 return nrm * (self.lens.shape["sigma"] * self.bscale)
+            if self.ramp_sigma != 1.0:
+                return nrm * (self.lens.shape["sigma"] * self.ramp_sigma)
             return nrm * self.lens.shape["sigma"]
         rel = proton.position_m[born, :2] - (0. if axis is None else axis)
         group = self.sub_index(z) if self.resets > 1 else np.floor((np.asarray(z) % self.cfg.circumference_m) / self.cell).astype(int)
@@ -542,7 +574,7 @@ class DynamicColumns:
             live = e.alive
             row = dict(alive_fraction=float(live.mean()), electron_population=float(e.population.sum()),
                        proton_population=float(proton.population.sum()))
-            if live.any():
+            if live.any() and e.population[live].sum() > 0:      # (a ramp's taper can set every live electron's weight to 0)
                 w = e.population[live]
                 xy = e.position_m[live, :2]
                 mean = np.average(xy, axis=0, weights=w)
@@ -553,6 +585,156 @@ class DynamicColumns:
             rows["recentre"] = self.describe_recentre()
         if self.track_on:
             rows["birth_scale"] = dict(scale=float(self.bscale), updates=len(self.track_log))
+        if self.rc:
+            rows["recycle"] = self.rc.describe()
         if self.cfg.dyn_aperture_kill:
             rows["aperture_kill"] = dict(lost_population=self.lost, lost_fraction=self.lost / max(sum((self.total or {}).values()), 1e-300))
         return rows
+
+
+class Recycler:
+    """Recycled-electron streams (Config.recycle_*; see the module doc). Offsets are from the column axis (the closed orbit when
+    column_follow_orbit), complex x + i y internally."""
+
+    def __init__(self, cfg, lens):
+        self.cfg, self.lens = cfg, lens
+        self.d = int(cfg.recycle_stride)
+        self.resets = cfg.electron_resets() if hasattr(cfg, "electron_resets") else 1
+        self.ncol = int(cfg.lattice_periods) * self.resets          # units: (sub-)columns, one electron beam each
+        self.cell = cfg.circumference_m / cfg.lattice_periods
+        self.length = float(lens.lengths[0]) / self.resets
+        self.win = max(0, int(round(0.5 * cfg.recycle_window_m / (cfg.circumference_m / cfg.steps_per_turn))))
+        self.rot = np.exp(1j * np.radians(cfg.recycle_rotate_deg))
+        self.cph = np.exp(1j * np.radians(cfg.recycle_centroid_phase_deg))
+        self.rng = np.random.default_rng(cfg.seed * 1000003 + 15485863 + cfg.recycle_seed) if cfg.recycle_noise_m > 0 else None
+        self.step = 0
+        self.off, self.src, self.when, self.sgen, self.gen, self.fac = {}, {}, {}, {}, {}, {}
+        self.stat = dict(fresh=0, recycled=0, scraped_weight=0.0, recycled_weight=0.0, m_in2=0.0, m_out2=0.0, q_in2=0.0, q_out2=0.0,
+                         groups=0)
+
+    def fresh(self, c: np.ndarray) -> np.ndarray:
+        """Stream starts (gun): the first d columns of the turn, and every recycle_gun_every-th column of a stream."""
+        c = np.asarray(c)
+        out = c < self.d
+        if self.cfg.recycle_gun_every:
+            out |= (c // self.d) % self.cfg.recycle_gun_every == 0
+        return out
+
+    def create(self, name: str, n: int) -> None:
+        # one macro-electron per proton carries d interleaved streams: while one stream's electron of this slice is in a transport,
+        # the next column holds another stream's. Stored exits are kept per stream slot (target unit mod d).
+        d = self.d
+        self.off[name] = np.zeros((d, n), complex)
+        self.src[name] = np.full((d, n), -1)
+        self.when[name] = np.zeros((d, n), int)
+        self.sgen[name] = np.zeros((d, n), int)
+        self.gen[name] = np.zeros(n, int)
+        self.fac[name] = np.ones(n)
+
+    def column(self, z: np.ndarray) -> np.ndarray:
+        """(Sub-)column index of lab position z (inside a column, or in the gap after it)."""
+        zz = np.asarray(z) % self.cfg.circumference_m
+        j = np.floor(zz / self.cell)
+        return ((j * self.resets + np.clip(np.floor((zz - j * self.cell) / self.length), 0, self.resets - 1)).astype(int)) % self.ncol
+
+    def end(self, k: np.ndarray) -> np.ndarray:
+        return (k // self.resets) * self.cell + (k % self.resets + 1) * self.length * (1 - 1e-12)
+
+    def store(self, e, gone: np.ndarray) -> None:
+        """Electrons leaving unit k: keep their offset at the unit end, in slot k mod d, if unit k + d is served by the same stream."""
+        idx = np.flatnonzero(gone)
+        if not len(idx):
+            return
+        k = self.column(e.position_m[idx, 2])
+        nxt = k + self.d
+        keep = (nxt < self.ncol) & ~self.fresh(nxt)
+        slot = k % self.d
+        self.src[e.name][slot, idx] = np.where(keep, k, -1)
+        if not keep.any():
+            return
+        idx, k, slot = idx[keep], k[keep], slot[keep]
+        axis = self.lens.axis_at(self.end(k))
+        xy = e.position_m[idx, :2] - (0. if axis is None else axis)
+        self.off[e.name][slot, idx] = xy[:, 0] + 1j * xy[:, 1]
+        self.when[e.name][slot, idx] = self.step
+        self.sgen[e.name][slot, idx] = self.gen[e.name][idx]
+
+    def reborn(self, e, proton, born: np.ndarray, z: np.ndarray, xy: np.ndarray) -> np.ndarray:
+        """Birth offsets for the electrons `born` (entering at z, fresh offsets xy): recycled ones get the transport map of their stored
+        exit offsets; generation count and charge factor updated."""
+        name = e.name
+        bidx = np.flatnonzero(born)
+        c = self.column(z)
+        slot = c % self.d
+        rec = (c >= self.d) & ~self.fresh(c) & (self.src[name][slot, bidx] == c - self.d)
+        fresh_i = bidx[~rec]
+        self.gen[name][fresh_i] = 0
+        self.fac[name][fresh_i] = 1.0
+        self.stat["fresh"] += len(fresh_i)
+        if not rec.any():
+            return xy
+        xy = xy.copy()
+        w_all = proton.population
+        for col in np.unique(c[rec]):
+            sl = col % self.d
+            src, off, when = self.src[name][sl], self.off[name][sl], self.when[name][sl]
+            sel = np.flatnonzero(rec & (c == col))
+            ii = bidx[sel]
+            t0 = int(np.median(when[ii]))
+            pool = np.flatnonzero((src == col - self.d) & (np.abs(when - t0) <= self.win) & (w_all > 0))
+            loss = (1 - self.cfg.recycle_current_loss) ** (self.sgen[name][sl, pool] + 1)
+            w = w_all[pool] * loss
+            if w.sum() <= 0:                            # nothing measurable: these electrons are re-born fresh
+                self.gen[name][ii] = 0
+                self.fac[name][ii] = 1.0
+                continue
+            o = off[pool]
+            m = np.sum(w * o) / w.sum()
+            r = o - m
+            sxx = np.sum(w * r.real**2) / w.sum(); syy = np.sum(w * r.imag**2) / w.sum(); sxy = np.sum(w * r.real * r.imag) / w.sum()
+            S = np.array([[sxx, sxy], [sxy, syy]])
+            ro = off[ii] - m
+            if self.cfg.recycle_strain_eta:
+                St = (1 - self.cfg.recycle_strain_eta) * S + self.cfg.recycle_strain_eta * 0.5 * np.trace(S) * np.eye(2)
+                M = _sqrtm(St) @ np.linalg.inv(_sqrtm(S))
+                v = M @ np.vstack([ro.real, ro.imag])
+                ro = v[0] + 1j * v[1]
+                q_out = St[0, 0] - St[1, 1] + 2j * St[0, 1]
+            else:
+                q_out = S[0, 0] - S[1, 1] + 2j * S[0, 1]
+            ro = ro * self.rot
+            mm = self.cph * m
+            if self.cfg.recycle_centroid_eta:
+                noise = 0j
+                if self.rng is not None:
+                    noise = complex(self.rng.normal(0, self.cfg.recycle_noise_m), self.rng.normal(0, self.cfg.recycle_noise_m))
+                mm = mm - self.cfg.recycle_centroid_eta * (mm + noise)
+            new = mm + ro
+            g = self.sgen[name][sl, ii] + 1
+            self.gen[name][ii] = g
+            fac = (1 - self.cfg.recycle_current_loss) ** g
+            if self.cfg.recycle_scrape_sigma:
+                lim = self.cfg.recycle_scrape_sigma * np.sqrt(0.5 * np.trace(S))
+                cut = np.abs(ro) > lim
+                self.stat["scraped_weight"] += float(np.sum(w_all[ii][cut] * fac[cut]))
+                fac = np.where(cut, 0.0, fac)
+            self.fac[name][ii] = fac
+            xy[sel, 0], xy[sel, 1] = new.real, new.imag
+            tr = max(np.trace(S), 1e-300)
+            self.stat["recycled"] += len(ii); self.stat["recycled_weight"] += float(np.sum(w_all[ii] * fac)); self.stat["groups"] += 1
+            self.stat["m_in2"] += abs(m) ** 2; self.stat["m_out2"] += abs(mm) ** 2
+            self.stat["q_in2"] += abs((S[0, 0] - S[1, 1] + 2j * S[0, 1]) / tr) ** 2; self.stat["q_out2"] += abs(q_out / tr) ** 2
+        return xy
+
+    def describe(self) -> dict:
+        g = max(self.stat["groups"], 1)
+        return dict(stride=self.d, fresh_births=self.stat["fresh"], recycled_births=self.stat["recycled"],
+                    scraped_weight=self.stat["scraped_weight"], recycled_weight=self.stat["recycled_weight"],
+                    centroid_in_rms_m=float(np.sqrt(self.stat["m_in2"] / g)), centroid_out_rms_m=float(np.sqrt(self.stat["m_out2"] / g)),
+                    strain_in_rms=float(np.sqrt(self.stat["q_in2"] / g)), strain_out_rms=float(np.sqrt(self.stat["q_out2"] / g)),
+                    groups=self.stat["groups"])
+
+
+def _sqrtm(S: np.ndarray) -> np.ndarray:
+    w, V = np.linalg.eigh(0.5 * (S + S.T))
+    return V @ np.diag(np.sqrt(np.maximum(w, 1e-300))) @ V.T

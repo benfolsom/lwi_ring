@@ -48,6 +48,11 @@ MP = constants.proton_mass
 MH = MP + 2 * constants.electron_mass - 14.3522 * E / C**2
 
 
+RECYCLE_DEFAULTS = dict(recycle_gun_every=0, recycle_rotate_deg=0.0, recycle_centroid_phase_deg=0.0, recycle_centroid_eta=0.0,
+                        recycle_strain_eta=0.0, recycle_current_loss=0.0, recycle_scrape_sigma=0.0, recycle_window_m=4.0,
+                        recycle_noise_m=0.0, recycle_seed=0)
+
+
 @dataclass
 class Config:
     energy_mev: float = 20.0
@@ -233,6 +238,13 @@ class Config:
     ramp_solenoid_follow: float = 0.0
     ramp_quad_scale: float = 1.0              # scale of the quadrupole make-up (1 = tunes held exactly; test knob)
     ramp_regrid_tol: float = 0.01             # rebuild the solver's Green function when gamma moved by this fraction
+    # csr-ramp additions (2026-10-27; inert at their defaults): ramp_shape "dual" adds a second magnet harmonic,
+    # b(s) = [(1 - cos pi s) + (alpha/4)(1 - cos 2 pi s)]/2 of the momentum swing (start (1 + alpha) times steeper, same end points);
+    # ramp_shape "table": kinetic energy interpolated in ramp_energy_table (e.g. a real cycle mapped onto the twin);
+    # dynamic (self-consistent) electrons follow the ramp: birth weight f C/L_columns, confining field x the solenoid scale,
+    # fixed gun size x the ramp_column_sigma scale, station side kick at the present rigidity.
+    ramp_dual_alpha: float = 0.0
+    ramp_energy_table: list | None = None     # ramp_shape "table": [[t_s, kinetic energy MeV], ...] (e.g. a real cycle mapped onto the twin)
     # ---- Dipole-mode mitigation additions (2026-10-22, damper.py); all inert at their defaults.
     # Transverse feedback damper: a slice-by-slice (damper_slots azimuthal slices) proportional damper. The pickup in the middle of
     # arc damper_pickup_arc reads the mean position of each slice (minus the closed orbit, plus damper_noise_m rms noise); the kicker in the
@@ -349,6 +361,30 @@ class Config:
     dyn_ellipticity: float = 0.0
     dyn_ellipse_angle_deg: float = 0.0
     dyn_match_profile: bool = False
+    # ---- Recycled electrons (2026-10-27, csr-recycle, report_recycled_electrons.md; dynamic electrons on the straights of a periodic
+    # lattice; inert unless recycle_stride > 0). The electrons leaving column k are not collected but carried through a proton-free
+    # transport (path length equal to the ring's, so they meet the same proton slice) and re-injected into column k + recycle_stride
+    # (2: the leapfrog of two interleaved streams). With dyn_resets = R > 1 the units are the R sub-columns of each column. Fresh (gun) electrons only at a stream start: the first recycle_stride columns of
+    # the turn and, if recycle_gun_every = M > 0, every M-th column of each stream; a stream ends at a collector after its last column
+    # (the turn's last columns, or before the next gun). The transport map acts on the stored exit offsets from the column axis, per
+    # electron slice: centroid m and covariance S of the exiting electrons within +-recycle_window_m/2 of the slice (by exit time),
+    # then r = offset - m is reshaped by the strain cleaning S -> (1 - recycle_strain_eta) S + recycle_strain_eta tr(S)/2 I (linear
+    # map S_t^1/2 S^-1/2), turned by recycle_rotate_deg about the slice centroid (the ellipse rotation of the transport: the self-field
+    # rotation is a positive angle for the same field sign as the column), and the centroid becomes e^(i phi) m - recycle_centroid_eta
+    # (e^(i phi) m + n), phi = recycle_centroid_phase_deg (l = 1 wall precession), n complex Gaussian monitor noise of rms
+    # recycle_noise_m per plane (seed recycle_seed). Electrons beyond recycle_scrape_sigma slice rms (per plane) from the slice centre are
+    # scraped (0 = none); each transport keeps a fraction 1 - recycle_current_loss of the stream's charge.
+    recycle_stride: int = 0
+    recycle_gun_every: int = 0
+    recycle_rotate_deg: float = 0.0
+    recycle_centroid_phase_deg: float = 0.0
+    recycle_centroid_eta: float = 0.0
+    recycle_strain_eta: float = 0.0
+    recycle_current_loss: float = 0.0
+    recycle_scrape_sigma: float = 0.0
+    recycle_window_m: float = 4.0
+    recycle_noise_m: float = 0.0
+    recycle_seed: int = 0
     # diag_bin_centroids adds the bin centroids (x, y per diag_bins bin, metres from the closed orbit) to the "coherent" record.
     diag_bin_centroids: bool = False
     # ---- Segmented wall-electrode feedback (2026-10-26, csr-wallring, report_wall_feedback_ring.md; dynamic electrons on the straights of a
@@ -523,6 +559,19 @@ class Config:
                     raise ValueError("paired electron births copy the protons' pattern: no dyn_profile or dyn_ellipticity")
                 if self.dyn_birth_sigma == "proton_cov" and self.dyn_ellipticity:
                     raise ValueError("dyn_ellipticity cannot be combined with dyn_birth_sigma = proton_cov")
+            if self.recycle_stride:
+                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack() \
+                        or self.ramp_enabled():
+                    raise ValueError("recycle_stride needs dynamic electrons on the straights of a periodic lattice, without a ramp")
+                if not (0 < self.recycle_stride < (self.lattice_periods or 0) * self.electron_resets() and self.recycle_gun_every >= 0
+                        and 0 <= self.recycle_centroid_eta <= 1 and 0 <= self.recycle_strain_eta <= 1
+                        and 0 <= self.recycle_current_loss < 1 and self.recycle_scrape_sigma >= 0 and self.recycle_window_m > 0
+                        and self.recycle_noise_m >= 0
+                        and all(math.isfinite(v) for v in (self.recycle_rotate_deg, self.recycle_centroid_phase_deg))):
+                    raise ValueError("recycle_*: 0 < stride < lattice_periods x resets, gun_every >= 0, centroid/strain eta in [0, 1], "
+                                     "0 <= current_loss < 1, scrape_sigma >= 0, window > 0, noise >= 0, finite angles")
+            elif any(getattr(self, k) != v for k, v in RECYCLE_DEFAULTS.items()):
+                raise ValueError("recycle_* options need recycle_stride > 0")
             if self.wfb_enable:
                 if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack() or self.ramp_enabled():
                     raise ValueError("wfb_enable needs dynamic electrons on the straights of a periodic lattice, without a ramp")
@@ -540,7 +589,7 @@ class Config:
                 raise ValueError("column_sigma_flux needs column_sigma_follow on the straights")
         elif self.column_follow_orbit or self.column_sigma_follow or self.column_electrons != "rigid" \
                 or self.column_local_fraction is not None or self.column_centroid_drift or self.column_sigma_flux or self.wfb_enable \
-                or self.column_drift_omega_overlap:
+                or self.column_drift_omega_overlap or self.recycle_stride:
             raise ValueError("column options need column_sections")
         if self.injection_profile not in ("gaussian", "truncated_gaussian", "waterbag", "painted"):
             raise ValueError("injection_profile: gaussian, truncated_gaussian, waterbag or painted")
@@ -2228,7 +2277,8 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
     ramp = None
     if cfg.ramp_enabled():
         from .ramp import Ramp
-        ramp = Ramp(cfg, p, lon, track, lens, solver, landau)
+        ramp = Ramp(cfg, p, lon, track, lens if dyn is None else dyn.lens, solver, landau)
+        ramp.dyn = dyn
     dt = p["period_s"] / cfg.steps_per_turn
     protons = [s for s, info in zip(beams, meta) if info["role"] == "proton"]
     initial = [s.momentum_mc.copy() for s in beams]

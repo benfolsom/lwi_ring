@@ -12,7 +12,7 @@ for bit. Modules:
     studyrun      the study runner (m = 0 / m = 2 column diagnostics, early stop, profile-shape diagnostic)
     presets       energy rescaling and field-scaled lattice presets used by the studies
 """
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Versions of the source copies merged into this release (sha256 of their ring_driver.py, first 12 hex digits).
 MERGED_SOURCES = {
