@@ -273,12 +273,7 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
             if cfg.wall_limit_s and time.monotonic() - started > cfg.wall_limit_s:
                 raise TimeoutError("bounded tracking wall limit exceeded")
             if step % 64 == 1:
-                cap = Path("/private/tmp/compute_cap")
-                while cap.exists() and int(cap.read_text()) < int(os.environ.get("RING_REQUIRED_CAP", "2")):
-                    if cfg.wall_limit_s:
-                        raise RuntimeError("compute cap does not permit bounded check")
-                    print("Waiting for compute_cap headroom", flush=True)
-                    time.sleep(10)
+                _driver.wait_for_cap(cfg.wall_limit_s)
             landau_step = landau
             if ramp:
                 dt = ramp.begin_step([s for s, info in zip(beams, meta) if info["role"] == "proton"])
@@ -401,7 +396,7 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
 
 
 def main(argv: list[str] | None = None) -> None:
-    """lwi-ring-many-turn: the copies' many_turn.py command line (acceptance gates optional, see driver.require_acceptance)."""
+    """lwi-ring-many-turn command line (acceptance gate optional, see driver.require_acceptance)."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -410,7 +405,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--tracked-per-beam", type=int, default=2048)
     parser.add_argument("--samples-per-turn", type=int, help="default: 8, doubled until Nyquist > max bare tune + 0.5")
     parser.add_argument("--solver-slots", type=int, choices=(1, 2, 3), default=1)
-    parser.add_argument("--require-acceptance", type=Path, metavar="DIR", help="apply the copies' checks.json gate from DIR")
+    parser.add_argument("--require-acceptance", type=Path, metavar="DIR", help="apply the checks.json acceptance gate from DIR")
     args = parser.parse_args(argv)
     cfg = Config(**json.loads(args.config.read_text()))
     with solver_lock(args.solver_slots):

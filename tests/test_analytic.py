@@ -1,13 +1,14 @@
-"""The analytic checks the studies used, run on lwi_ring.
+"""Analytic checks of the electron-column and lattice physics, run on lwi_ring.
 
-* solenoid area preservation (ring_driver/README.md, stage 2b): the one-turn map of the driver's own push through the 12-cell solenoid
+* solenoid area preservation: the one-turn map of the driver's own push through the 12-cell solenoid
   lattice has det = 1 with solenoid_edge_in_drift; the legacy edge treatment does not (1 - det ~ steps^-2), so the check has teeth;
-* zero-current identity (report_dynamic_400MeV.md): with one real proton the self-consistent (dynamic) and rigid columns give the same
+* zero-current identity: with one real proton the self-consistent (dynamic) and rigid columns give the same
   protons (the electrons carry no charge to speak of);
-* E x B drift rate (report_dynamic_profiles.md, csrdp_val.py m1): electrons born on the axis circle a displaced flat-top proton column at
+* E x B drift rate (transit harness, mode m1): electrons born on the axis circle a displaced flat-top proton column at
   Omega = lambda nbar / (2 eps0 |B| beta gamma^2 c);
-* l = 2 response of a flat-top column (report_warpx_m2_response.md, csrdp_val.py m2): dQ_e/ds = i k (a Q_p + b Q_e) with a = 1 and
-  b = f - 2 for a uniform column in free space; the PIC's edge smoothing makes a few per cent at 64^2 (report: a = 0.911, b = -0.944).
+* l = 2 response of a flat-top column (transit harness, mode m2): dQ_e/ds = i k (a Q_p + b Q_e) with a = 1 and
+  b = f - 2 for a uniform column in free space; the PIC's edge smoothing makes a few per cent at 64^2
+  (a = 0.911, b = -0.944 at the reference resolution).
 """
 from __future__ import annotations
 
@@ -80,8 +81,8 @@ def test_exb_drift_rate():
 
 @pytest.mark.slow
 def test_l2_response_flattop():
-    # 2^19 particles as in csrdp_val.py: at 2^18 the self term b is noise-dominated (-0.74). Result at 2^19, 64^2 x 128:
-    # a = 0.880 + 0.070i, b = -0.912 - 0.182i (report_dynamic_profiles.md: 0.911, -0.944; analytic 1, f - 2 = -0.914).
+    # 2^19 particles (transit harness, mode m2): at 2^18 the self term b is noise-dominated (-0.74). Result at 2^19, 64^2 x 128:
+    # a = 0.880 + 0.070i, b = -0.912 - 0.182i (reference resolution: 0.911, -0.944; analytic 1, f - 2 = -0.914).
     from transit import transit
     r = transit("m2", "flattop", "flattop", particles=2**19, grid=(64, 64, 128))
     assert abs(r["a"] - 1) < 0.2, r

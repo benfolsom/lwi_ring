@@ -1,13 +1,14 @@
-"""csr-ramp options (2026-10-27): dual-harmonic and energy-table ramp shapes, dynamic electrons following the ramp.
+"""Ramp options: dual-harmonic and energy-table ramp shapes, dynamic electrons following the ramp.
 
 - the options are inert by default and rejected without a ramp;
 - the programmes have the stated end points and shapes (analytic, no tracking);
 - a short rigid-column ramp (sine, taper, min_phase RF) is bit-identical to the unmodified lwi_ring (run in a subprocess from
-  LWI_RING_REFERENCE_SRC, default: the study's lwi_ring/src), so the existing ramp paths are untouched;
+  LWI_RING_REFERENCE_SRC; skipped when unset), so the existing ramp paths are untouched;
 - a short dynamic-electron ramp runs, and the electron charge in the columns follows the programmed fraction.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
 import os
@@ -21,10 +22,10 @@ import pytest
 import harness
 from cases import J1
 
-# the unmodified package to compare against (results_local may be a symlink, so the study is not found from __file__)
-STUDY = Path.home() / "work/extracurr/LW_feasibility_studies/studies/compensated_storage_ring"
-REF_SRC = Path(os.environ.get("LWI_RING_REFERENCE_SRC", STUDY / "lwi_ring/src"))
-LWI = Path(os.environ.get("LWI_INTEGRATOR", Path.home() / "work/extracurr/LW_integrator"))
+# the unmodified package to compare against: the src directory of another lwi_ring checkout, set in LWI_RING_REFERENCE_SRC
+REF_SRC = Path(os.environ.get("LWI_RING_REFERENCE_SRC", "/nonexistent"))
+# the LW Integrator checkout that provides `core`
+LWI = Path(importlib.util.find_spec("core").origin).parent.parent
 
 TINY = dict(particles_per_bunch=4096, grid=[32, 32, 64], steps_per_turn=256, tune_samples_per_turn=16, turns=2, backend="cpu",
             half_xy_m=0.3)
@@ -107,7 +108,7 @@ driver.run(cfg, driver.OUT / "ref")
 '''
 
 
-@pytest.mark.skipif(not (REF_SRC / "lwi_ring/ramp.py").exists(), reason="no reference lwi_ring source")
+@pytest.mark.skipif(not (REF_SRC / "lwi_ring/ramp.py").exists(), reason="LWI_RING_REFERENCE_SRC not set to a reference lwi_ring source")
 def test_rigid_ramp_bit_identical_to_reference(output_root, tmp_path):
     """the unchanged ramp paths (sine shape, 'taper', rigid columns) give the same digests as the unmodified package."""
     from lwi_ring import driver

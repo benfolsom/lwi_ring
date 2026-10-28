@@ -1,4 +1,4 @@
-"""Transverse feedback damper and coherent-mode diagnostics (dipole-mode mitigation study, 2026-10-22).
+"""Transverse feedback damper and coherent-mode diagnostics (dipole-mode mitigation).
 
 Damper.  A slice-by-slice (azimuth-resolved) proportional transverse damper on the beam centroid.  The beam is cut into `damper_slots`
 slices of equal arrival time (slot q = steps q*S ... (q+1)*S - 1 with S = steps_per_turn / slots; a step is C/steps_per_turn = 0.94 m of

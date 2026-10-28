@@ -1,4 +1,4 @@
-"""Run a bit-identity case with lwi_ring or with a snapshot of a source copy, and digest its outputs (SHA-256 of the raw arrays and of
+"""Run a bit-identity case with lwi_ring or with a snapshot of a source version, and digest its outputs (SHA-256 of the raw arrays and of
 the canonical JSON of the records; wall-clock fields removed)."""
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import numpy as np
 
 from cases import ALL_CASES
 
-# Single-threaded kernels: the copies' bit-identity runs used the same environment (csrm2_bitid.sh).
+# Single-threaded kernels: the references were made in this environment.
 THREADS = dict(OMP_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1", VECLIB_MAXIMUM_THREADS="1", NUMBA_NUM_THREADS="1")
 MANY_TURN = dict(aperture_m=0.17, tracked_per_beam=2048, samples_per_turn=16, checkpoint_turns=1)
 
@@ -76,7 +76,8 @@ def run_package(name: str, root: Path) -> dict:
     if entry == "many_turn":
         many_turn.run(cfg, out, many_turn.Settings(**MANY_TURN))
         return digests(out, entry)
-    opts = dict(diagnostics=script != "csrrcd_run.py", shape=script in ("csrdp_run.py", "csrwr_run.py"), every=4, stop_growth=None)
+    opts = dict(diagnostics=script != "runner_recentre_dyn.py", shape=script in ("runner_dynprof.py", "runner_wallfb.py"), every=4,
+                stop_growth=None)
     for flag in flags:
         if flag.startswith("--stop-growth="):
             opts["stop_growth"] = float(flag.split("=", 1)[1])
@@ -84,7 +85,7 @@ def run_package(name: str, root: Path) -> dict:
     return digests(out, entry, result["status"])
 
 
-# ---- source copies (reference generation, tools/make_references.py) -----------------------------------------------------------------
+# ---- source versions (optional reference comparison, tools/make_references.py --sources) -----------------------------------------------------------------
 REF_RUNNER = r'''
 import json, sys
 from pathlib import Path
@@ -101,10 +102,12 @@ else:
 '''
 
 
-def run_reference(name: str, study: Path, scratch: Path, python: str, env: dict) -> tuple[dict, dict]:
-    """Run case `name` with a scratch snapshot of its source copy (the original is only read). Returns (digests, provenance)."""
+def run_reference(name: str, sources: Path, scratch: Path, python: str, env: dict) -> tuple[dict, dict]:
+    """Run case `name` with a scratch snapshot of its source version (the original is only read). Returns (digests, provenance).
+
+    `sources` holds <label>/ (the ring driver directory of that version) and runners/<script> (see cases.SOURCES)."""
     source, entry, config, script, flags = ALL_CASES[name]
-    src = study / SOURCE_DIRS[source]
+    src = sources / source
     snap_root = scratch / name
     if snap_root.exists():
         shutil.rmtree(snap_root)
@@ -114,8 +117,8 @@ def run_reference(name: str, study: Path, scratch: Path, python: str, env: dict)
     cfgp = snap_root / "case.json"
     cfgp.write_text(json.dumps(config))
     out_root = snap_root / "results_local/ring_pic"
-    if entry == "study":
-        shutil.copy2(study / "scripts" / script, snap_root / "scripts" / script)
+    if entry == "diag":
+        shutil.copy2(sources / "runners" / script, snap_root / "scripts" / script)
         cmd = [python, "-B", str(snap_root / "scripts" / script), str(drv), str(cfgp), name, *flags]
     else:
         (snap_root / "ref_case.py").write_text(REF_RUNNER)
@@ -125,12 +128,10 @@ def run_reference(name: str, study: Path, scratch: Path, python: str, env: dict)
     if proc.returncode:
         raise RuntimeError(f"reference run {name} failed:\n{proc.stderr[-3000:]}")
     status = None
-    if entry == "study":
+    if entry == "diag":
         status = json.loads([line for line in proc.stdout.splitlines() if line.startswith("{")][-1])["status"]
-    prov = dict(source=source, source_dir=SOURCE_DIRS[source], entry=entry, script=script, flags=flags,
+    prov = dict(source=source, entry=entry, script=script, flags=flags,
                 ring_driver_sha256=hashlib.sha256((src / "ring_driver.py").read_bytes()).hexdigest(),
                 source_files_sha256={f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(src.glob("*.py"))})
     return digests(out_root / name, entry, status), prov
 
-
-from cases import SOURCES as SOURCE_DIRS  # noqa: E402

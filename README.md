@@ -56,6 +56,7 @@ driver.run(cfg, Path("out/case"))
 
 Solver locks, the Numba cache, default run directories and the many-turn output check live below the output root: `$LWI_RING_OUT` if
 set, otherwise `./results_local/ring_pic` in the working directory. `driver.set_output_root(path)` changes it at run time.
+On a shared machine, `LWI_RING_CAP_FILE=/path/to/file` makes the run loops wait while the integer in that file is below `RING_REQUIRED_CAP` (default 2); unset, nothing waits.
 
 The GPU backend (`backend="mlx"` in the config, or `--backend mlx`) runs the kernels in float32 through `core.pic.mlx_backend`. MLX is
 taken from the installed package, or else from `$RING_MLX_SITE`. GPU results are not bit-comparable with CPU results, and the test
@@ -142,15 +143,18 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -m slow    # larger bit-ide
 
 - `test_bitid.py`: the bit-identity cases run short configurations (1 turn at 4096 particles per bunch; slow: 2 turns at 8192) and
   compare SHA-256 digests of the final particle arrays and the turn, diagnostic, feedback and many-turn records against stored
-  reference digests in `tests/data/references.json`. The references were produced by the earlier, separate ring-driver versions that
-  this package consolidates. They hold for the recorded environment (macOS arm64, Python 3.12, NumPy 2.4.2, SciPy 1.17.0,
-  single-threaded). On another build, regenerate them with `tools/make_references.py` rather than loosening the comparison; that
-  tool needs the original driver versions, which are not part of this repository.
+  reference digests in `tests/data/references.json`. The references were first produced by the earlier, separate ring-driver versions
+  that this package consolidates. They hold for the recorded environment (macOS arm64, Python 3.12, NumPy 2.4.2, SciPy 1.17.0,
+  single-threaded). After an intentional numerical change, or on another platform build, regenerate them from the package itself with
+  `python tools/make_references.py` (set `LWI_ROOT` to an LW Integrator checkout if `core` is not installed) rather than loosening the
+  comparison; the stored digests then describe lwi_ring on that build. With `--sources DIR` the tool also runs snapshots of the earlier
+  driver versions and compares them with lwi_ring (see the tool's docstring for the directory layout; the originals are not part of this
+  repository). `--busy-pattern REGEX` optionally holds each case back while other matching processes keep the machine busy.
 - `test_analytic.py`: solenoid area preservation (one-turn map determinant 1 with `solenoid_edge_in_drift`), the zero-current
   identity (dynamic equals rigid columns at one proton), the E × B drift rate of electrons about a displaced flat-top column
   (64² × 128 grid), and, slow, the l = 2 response of a flat-top column.
 - `test_options.py`: the baseline `Config` defaults are kept, aliases are unified, and conflicting options are rejected.
-- `test_recycle.py`, `test_ramp_csr.py`: the recycled-electron and ramp options.
+- `test_recycle.py`, `test_ramp_options.py`: the recycled-electron and ramp options. The ramp test also compares against another checkout's `src` when `LWI_RING_REFERENCE_SRC` points to it (skipped otherwise).
 
 ## Dependency on the LW Integrator
 

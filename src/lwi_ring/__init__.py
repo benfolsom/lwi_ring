@@ -12,21 +12,3 @@ Every feature is a ``Config`` option and all defaults reproduce the baseline rin
     presets       energy rescaling and field-scaled lattice presets
 """
 __version__ = "0.2.0"
-
-# Versions of the earlier driver copies merged into this package (sha256 of their ring_driver.py, first 12 hex digits).
-MERGED_SOURCES = {
-    "ring_driver (canonical)": "a0d862d6a3db",
-    "dipole": "f90b3ad026be",
-    "stage3d": "89e6c604e94e",
-    "drift": "e81995b8a06e",
-    "recentre_dyn": "4e73604e410c",
-    "recentre": "9a366edf0fd1",
-    "esize": "6c18d5b64d42",
-    "m2 / dyn400": "79cd6c2c8b49",
-    "remedy2": "8b2119372f33",
-    "remedy": "aa0c6c9b2a7c",
-    "dynprof": "a7d451acab31",
-    "wallfb": "725d7d88292f",
-}
-# wallfb.py as corrected on 2026-10-27 (l = 1 gain 1/(4 pi eps0 ...), was 1/(2 pi eps0 ...)).
-WALLFB_SHA256 = "be3ce4911185"

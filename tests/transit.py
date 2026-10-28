@@ -1,12 +1,12 @@
-"""Single-transit harness of the analytic electron-column checks (a compact port of scripts/csrdp_val.py, modes m1 and m2).
+"""Single-transit harness of the analytic electron-column checks (modes m1 and m2).
 
 Protons are frozen transversely (profile `proton_profile`, displaced by `offset_mm` in x for m1, elliptical with `aspect` for m2), the
 electrons are born round on the column axis and drift (E x B) in the driver's own fields while bunch 0 crosses column 0 (B_z = +0.135 T).
 Only electrons born at the entrance within `window_m` of the moving bunch peak are analysed.
   m1: the electron centroid circles the proton centroid at Omega = lambda nbar / (2 eps0 |B| beta gamma^2 c) per lab metre, nbar the
-      overlap density int rho_p rho_e dA (report_warpx_electron_column.md, report_dynamic_profiles.md);
+      overlap density int rho_p rho_e dA;
   m2: fit of dQ_e/ds = i k (a Q_p + b Q_e), k = omega_D / (beta gamma c), omega_D the l = 2 rate of the rms-equivalent uniform column;
-      analytic for uniform columns in free space: a = 1, b = f - 2 (report_warpx_m2_response.md).
+      analytic for uniform columns in free space: a = 1, b = f - 2.
 """
 from __future__ import annotations
 

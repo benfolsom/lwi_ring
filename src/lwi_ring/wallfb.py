@@ -1,6 +1,6 @@
-"""Segmented wall-electrode feedback on the electron columns (csr-wallring, 2026-10-26; report_wall_feedback_ring.md).
+"""Segmented wall-electrode feedback on the electron columns.
 
-The ring-driver counterpart of the WarpX study of report_wall_electrode_feedback.md (scripts/csrwall_column.py, csrwall_el.py): every
+Every
 column (the straights of the periodic lattice) is lined with a bore of radius b (wfb_bore_m) cut into n azimuthal sectors (wfb_sectors,
 sector k centred at 2 pi k / n, contiguous) and into nseg = round(L / wfb_segment_m) equal segments along the column. Each segment is
 driven from a pickup wfb_pickup_offset = j segments upstream (for the first j segments: the last j segment lengths of the arc before the
@@ -10,8 +10,8 @@ Pickup. The net (proton + electron) charge is binned in a frame co-moving at the
 two bunches and any debunched beam share the slices, as on a real pickup). At every step the particles inside each pickup region give,
 per slice, the moments M_l = sum q z^l (z = x + i y about the chamber axis, l <= max(n + 2, 18)), the induced charge on the n sectors from the exact
 circular-bore Green function, and from those the l = 1 and l = 2 estimates (DFT over the sectors with the sinc correction, aliasing of the
-n -+ l harmonics included; Bore of csrwall_el.py). A slice's pickup signal is the mean of these per-step estimates over its transit of
-the region (the "signal averaged over the previous L of beam travel" of the WarpX study, now slice-resolved). Optional pickup noise
+n -+ l harmonics included; see Bore). A slice's pickup signal is the mean of these per-step estimates over its transit of
+the region (the signal averaged over the previous L of beam travel, slice-resolved). Optional pickup noise
 (wfb_noise1_m: rms dipole noise in metres of offset at the bunch-peak line density; wfb_noise2: rms l = 2 noise in units of ellipticity
 |Q|/(2 sigma^2) at the peak line density; one draw per slice and pass, quoted after the slice filter), and a slow baseline: the mean
 signal of each slice at each pickup over the earlier passes (running mean, then an exponential average over wfb_baseline_turns) is
@@ -56,7 +56,7 @@ QE = 1.602176634e-19
 
 
 class Bore:
-    """Segmented circular bore (conventions of csrwall_el.Bore), with the harmonics truncated at lmax."""
+    """Segmented circular bore with the harmonics truncated at lmax."""
 
     def __init__(self, nsec: int, bore: float, lmax: int):
         self.n, self.b, self.lmax = nsec, bore, lmax

@@ -18,12 +18,12 @@
     },
     "turns": "f6ad2acd126729b9525d148d4a91c2014858b7a42277c46d2ff266f2069a1b09"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -76,12 +76,12 @@
     },
     "turns": "1d5b93f48fef5a69937a8866ee98e0ce1842f9eac913e2e10421f6cfa6f8896c"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -147,12 +147,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "0f5dea895f76e4188cf9d8e714c042da545a3cb88a2d5ee6cc3ac0c24f18b52c"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -206,12 +206,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "49522944a25609806fcbda6ad5c8216db9c1a2dd74e952c80fa8215db33432b7"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -265,12 +265,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "8c3ac16196d3ef2259fc89ae3eb821798e1d9f489513d8e9b9bbdc579338ef8f"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -335,12 +335,12 @@
     },
     "turns": "3f980a83effd9ea0c7db3db577ee93f231abaa8d49466acb05809b42eff26f5c"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "a0d862d6a3dba10d00dd4dbe8d4197022d84717c991aee66b27429f6993bc65f",
    "script": null,
    "source": "canonical",
-   "source_dir": "ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -387,12 +387,12 @@
     },
     "turns": "68a77c004e52e8bd343ee97d8cfddd38b3ac15a925eeaaf3557a043a28fd6d90"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "f90b3ad026be7c662f698b6233a9a481e1ba0784cbfc6f612fa342ab254a4f13",
    "script": null,
    "source": "dipole",
-   "source_dir": "results_local/dipole/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -447,12 +447,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "81f65e7c9776f21d2e384c044f3939890c54d08edabf80ff08a533f0ba6f6f96"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "f90b3ad026be7c662f698b6233a9a481e1ba0784cbfc6f612fa342ab254a4f13",
    "script": null,
    "source": "dipole",
-   "source_dir": "results_local/dipole/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -507,12 +507,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "edaf1561b7c7fa8fb190b1cf06d1a67abccd5ea1962aebcf4ee967cbd891d9be"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "f90b3ad026be7c662f698b6233a9a481e1ba0784cbfc6f612fa342ab254a4f13",
    "script": null,
    "source": "dipole",
-   "source_dir": "results_local/dipole/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -560,12 +560,12 @@
     },
     "turns": "93111f1a8aa19322896928095842809c21732f1808b0bdafdb36ef1535eaa9c0"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "e81995b8a06ee90185b544b9c4ed216d90ce99d2763e4b7ec6910cc26745812d",
    "script": null,
    "source": "drift",
-   "source_dir": "results_local/drift/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -620,12 +620,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "ee074233a77e5479e2770586e0b71fe78fe755759618826fb542727c4a8c5a9a"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "e81995b8a06ee90185b544b9c4ed216d90ce99d2763e4b7ec6910cc26745812d",
    "script": null,
    "source": "drift",
-   "source_dir": "results_local/drift/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -680,12 +680,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "cfd82b134dd366a9da15e094de77e8a04813cff182e1d938b0ee4c97e64d0478"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "e81995b8a06ee90185b544b9c4ed216d90ce99d2763e4b7ec6910cc26745812d",
    "script": null,
    "source": "drift",
-   "source_dir": "results_local/drift/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -741,12 +741,12 @@
     "status": "complete",
     "turns": "d2e9425b111b90f1c1c596c3a0aedf9ceb295f7a3707ce3e50caf221b474133b"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
-   "script": "csrdyn400_run.py",
+   "script": "runner_dyn400.py",
    "source": "dyn400",
-   "source_dir": "results_local/dyn400/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -802,12 +802,12 @@
     "status": "complete",
     "turns": "9d17d1a1b52797c45e879f394b8d225eab9db6c222be0b8b3a6bc862d357505d"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
-   "script": "csrdyn400_run.py",
+   "script": "runner_dyn400.py",
    "source": "dyn400",
-   "source_dir": "results_local/dyn400/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -861,12 +861,12 @@
     },
     "turns": "ae0096ec6e97bb2ef26b1063b516a6907f34e7ef58232525623140e13647e1a8"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "a7d451acab3173966635a7e30f8cf6b81f6c8bbbe59c1dcb42b7f5aea0637849",
    "script": null,
    "source": "dynprof",
-   "source_dir": "results_local/dynprof/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -922,14 +922,14 @@
     "status": "complete",
     "turns": "402521003c289772dd11edad179dd67e10021e0efdad1d8289cb3361ac2a8eb4"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "a7d451acab3173966635a7e30f8cf6b81f6c8bbbe59c1dcb42b7f5aea0637849",
-   "script": "csrdp_run.py",
+   "script": "runner_dynprof.py",
    "source": "dynprof",
-   "source_dir": "results_local/dynprof/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -985,14 +985,14 @@
     "status": "complete",
     "turns": "085d6c3648163e8c182b0d0d4dac5b84a260c2fc6001840624c830489512222e"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "a7d451acab3173966635a7e30f8cf6b81f6c8bbbe59c1dcb42b7f5aea0637849",
-   "script": "csrdp_run.py",
+   "script": "runner_dynprof.py",
    "source": "dynprof",
-   "source_dir": "results_local/dynprof/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1040,12 +1040,12 @@
     },
     "turns": "e5aa98665dce5112f4d1a856ffc9852edd2c20e1ba1f1b49b53dd90ace560249"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "6c18d5b64d420636e901b5b053b4e35d1084fc20dccaae2560a6cae83835421b",
    "script": null,
    "source": "esize",
-   "source_dir": "results_local/esize/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1093,12 +1093,12 @@
     },
     "turns": "d88bac8a7694155ef07747a42806c1586a383afd4afda98ea544f34b2f82e02a"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "6c18d5b64d420636e901b5b053b4e35d1084fc20dccaae2560a6cae83835421b",
    "script": null,
    "source": "esize",
-   "source_dir": "results_local/esize/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1152,12 +1152,12 @@
     },
     "turns": "8c7e7533f9e139c9d9342559256f4831c95f67e2ed2ab977de312a8bf63a1fa6"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
    "script": null,
    "source": "m2",
-   "source_dir": "results_local/m2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1211,12 +1211,12 @@
     },
     "turns": "ad89da11a81ad48323352cd78b323dc64c2dbbaedccccbd0ef7d55b65f316a6b"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
    "script": null,
    "source": "m2",
-   "source_dir": "results_local/m2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1272,12 +1272,12 @@
     "status": "complete",
     "turns": "e44864c0a37c8d8283195aa7de2a62a72959790ceccc0817a82a90912e6ae981"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
-   "script": "csrm2_run.py",
+   "script": "runner_m2.py",
    "source": "m2",
-   "source_dir": "results_local/m2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1333,12 +1333,12 @@
     "status": "complete",
     "turns": "bf48a6170fcf5e19f178e7afdc576bfd1c47939ac7700181f8b01378f755b009"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "79cd6c2c8b49db10a96b7d5900fa755c546aea0f920cf23d3c1d0998b7fb08eb",
-   "script": "csrm2_run.py",
+   "script": "runner_m2.py",
    "source": "m2",
-   "source_dir": "results_local/m2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1374,6 +1374,112 @@
     "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
    }
   },
+  "painted_profile": {
+   "digests": {
+    "final": {
+     "proton_0_momentum_mc": "480ec6c74cd543000393c6de3b5f59b09687b8990fe4b04d0426d13a8245672b",
+     "proton_0_population": "9ad5bbd6a8415805a8877a22468741759b394c4a86a785a90188875f2442a434",
+     "proton_0_position_m": "15ffe92c43effb9d470c6147c2e25b6a7ec4685705e8696c046fd9c88fa1c0ad",
+     "proton_1_momentum_mc": "70e73825df7743cbc35ae21fbf3e618378267e5c37f59e9fd8bf42f8d9eb3a2e",
+     "proton_1_population": "9ad5bbd6a8415805a8877a22468741759b394c4a86a785a90188875f2442a434",
+     "proton_1_position_m": "17d17cee5eea89b7208c19f10a83e7e38bdd61d947693bacc2460197ca6932e9"
+    },
+    "turns": "e7672f58ea8dbaa47d3677017c283664ca6d19ea183026dc1889289874c88a70"
+   },
+   "digests_from": "source copy",
+   "entry": "run",
+   "flags": [],
+   "ring_driver_sha256": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
+   "script": null,
+   "source": "painted",
+   "source_files_sha256": {
+    "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
+    "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
+    "compare_bitid.py": "c127b3666e2220c4b8c906179dd4635848ab53610af0442d02abe8e48960fbe0",
+    "compare_runs.py": "c4606f4db48bdcf595d0d2f668375a9bbbece9c276cc559b84a21eab51464867",
+    "damper.py": "5a865843235f94a01281feb4a7066283a215c03d68c0c07b1072561695255bc6",
+    "edyn_columns.py": "2afe5fa045c7f90869b6ce04dbd9356de065d5129829f208bf0689247acd490d",
+    "force_diagnostics.py": "bb92e63ff2718193de39495f34f9298e95026253da957990948edbb8508f96b5",
+    "injection.py": "4d71741fa5f56551e4ce6544e32215ce321b5f273669b6870521ba8867752908",
+    "intensity_scan.py": "887fb3d6e68900f3e80047feb7ac0b43ac9ef620b48befa8a584487703491461",
+    "lattice_linear.py": "c864241758b5ff20c0f22a416837a009a32d3d8e3113391995593ef946fb917f",
+    "launch_campaign.py": "9513d10ae371c99009eb9b8bf485ad5c8ee4c3e39ee4718adb779fe1e2571b31",
+    "launch_stage2.py": "8b09da812bf02bca034c425043a6fbbf105aca12278169af068d52467a5f9ded",
+    "longitudinal.py": "ee076be7e608886b8d036cc444dcaa08b3428ef6485105e7de5dd47222a9bf99",
+    "make_stage3b_configs.py": "9242aca212c54e081a3af3d359812e3bc098f0020e8c74999e0177f0a95de61b",
+    "many_turn.py": "512491a63a35ad4fdac96ca6488c0b784186186248f3de7f2336bf0f9626e790",
+    "mlx_pilot.py": "a4c3c139d175f9d6eebd431e355a300bb5754a3b29935ee67876b8be498743b1",
+    "mlx_pilot_ramp.py": "37f52091266aa93347e30c652bef94aad50fc6f04e8b2daf5df32d22620430bd",
+    "per_bunch_reference.py": "a975d69690a96ac7e123a320e93bd292a9a5d3f87804df251ff0698ae225e8b7",
+    "precision_check.py": "3603554aad6e975e57637647a3ab833b9e6663feb7d7059bae8561bb69e9e9b3",
+    "racetrack_bitid.py": "34cfa6b21c88e57d2420d48154de20decaf4df9d7d66841eaba27ac0120aa54e",
+    "racetrack_checks.py": "156f05d6a8d0e4c65dacc7f5dbb81b801154085726387c33739fc8f4e497051e",
+    "ramp.py": "c4b2184753e20430a5ce65e01d1ad7db303181edaf2b6d3ab94abe49a42c2654",
+    "ramp_checks.py": "0a64068cd9d1ba4b6a244d09c27909ffb545a240e6b923114cf61ca28fb6f0b1",
+    "ramp_setup.py": "036cc6d79091cc783522804ec7890b92fd06237ddac6fc7ad1d5c794885c45ca",
+    "rf_checks.py": "79747e76ae949afb22bc3794fbd402c101727dad6d2e44d31dd789e1b8f684b1",
+    "ring_checks.py": "bcada4dfe0090f526a4720525de98cb89a2e1c506a28c755cadc59033e92e218",
+    "ring_driver.py": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
+    "ring_match_probe.py": "fb59b8c826cb2c8ba1977ea57753dd42606dc58f4b9df777964554d297dbfab5",
+    "run_revision1_smoke.py": "a3e404b12943d3ce6194d4477b8fb52c6f720482a44a0730d6c37880fdec1d7c",
+    "setup_checks.py": "42604cf59168ae40e00987e1a1a6d53f8cd6a80578e1b11f6b905ba90ea67559",
+    "stage2_checks.py": "ade64c93c2e3ea2aea6aa594bf73d9b9975e3b4437c3a82db8e98ee5bec4b2c2",
+    "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
+   }
+  },
+  "painted_profile_slow": {
+   "digests": {
+    "final": {
+     "proton_0_momentum_mc": "6fc75b438d8ec0ad49b6861f7942fa48e28ba46936de68e5bca8da59566555da",
+     "proton_0_population": "601d6c3fac77ef5a25d981b57d39256211373cdd15fa476ccc2f3a7093007e1c",
+     "proton_0_position_m": "9faf1066399bcf9ad111e542c5066840c1619c4a3a885a86ff13c7a170e34d37",
+     "proton_1_momentum_mc": "dc933760837bef271cf50826575db1b09abe8aa406a79b085a350a9238a714ef",
+     "proton_1_population": "601d6c3fac77ef5a25d981b57d39256211373cdd15fa476ccc2f3a7093007e1c",
+     "proton_1_position_m": "f03fa8596595624c5565a8937f82906298f27daf9f1d3c21242fed02ad9e481d"
+    },
+    "turns": "78d5d2624984f333a5432408fdf7c7f048e7a8b9a109e36293e26d3a80b83b11"
+   },
+   "digests_from": "source copy",
+   "entry": "run",
+   "flags": [],
+   "ring_driver_sha256": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
+   "script": null,
+   "source": "painted",
+   "source_files_sha256": {
+    "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
+    "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
+    "compare_bitid.py": "c127b3666e2220c4b8c906179dd4635848ab53610af0442d02abe8e48960fbe0",
+    "compare_runs.py": "c4606f4db48bdcf595d0d2f668375a9bbbece9c276cc559b84a21eab51464867",
+    "damper.py": "5a865843235f94a01281feb4a7066283a215c03d68c0c07b1072561695255bc6",
+    "edyn_columns.py": "2afe5fa045c7f90869b6ce04dbd9356de065d5129829f208bf0689247acd490d",
+    "force_diagnostics.py": "bb92e63ff2718193de39495f34f9298e95026253da957990948edbb8508f96b5",
+    "injection.py": "4d71741fa5f56551e4ce6544e32215ce321b5f273669b6870521ba8867752908",
+    "intensity_scan.py": "887fb3d6e68900f3e80047feb7ac0b43ac9ef620b48befa8a584487703491461",
+    "lattice_linear.py": "c864241758b5ff20c0f22a416837a009a32d3d8e3113391995593ef946fb917f",
+    "launch_campaign.py": "9513d10ae371c99009eb9b8bf485ad5c8ee4c3e39ee4718adb779fe1e2571b31",
+    "launch_stage2.py": "8b09da812bf02bca034c425043a6fbbf105aca12278169af068d52467a5f9ded",
+    "longitudinal.py": "ee076be7e608886b8d036cc444dcaa08b3428ef6485105e7de5dd47222a9bf99",
+    "make_stage3b_configs.py": "9242aca212c54e081a3af3d359812e3bc098f0020e8c74999e0177f0a95de61b",
+    "many_turn.py": "512491a63a35ad4fdac96ca6488c0b784186186248f3de7f2336bf0f9626e790",
+    "mlx_pilot.py": "a4c3c139d175f9d6eebd431e355a300bb5754a3b29935ee67876b8be498743b1",
+    "mlx_pilot_ramp.py": "37f52091266aa93347e30c652bef94aad50fc6f04e8b2daf5df32d22620430bd",
+    "per_bunch_reference.py": "a975d69690a96ac7e123a320e93bd292a9a5d3f87804df251ff0698ae225e8b7",
+    "precision_check.py": "3603554aad6e975e57637647a3ab833b9e6663feb7d7059bae8561bb69e9e9b3",
+    "racetrack_bitid.py": "34cfa6b21c88e57d2420d48154de20decaf4df9d7d66841eaba27ac0120aa54e",
+    "racetrack_checks.py": "156f05d6a8d0e4c65dacc7f5dbb81b801154085726387c33739fc8f4e497051e",
+    "ramp.py": "c4b2184753e20430a5ce65e01d1ad7db303181edaf2b6d3ab94abe49a42c2654",
+    "ramp_checks.py": "0a64068cd9d1ba4b6a244d09c27909ffb545a240e6b923114cf61ca28fb6f0b1",
+    "ramp_setup.py": "036cc6d79091cc783522804ec7890b92fd06237ddac6fc7ad1d5c794885c45ca",
+    "rf_checks.py": "79747e76ae949afb22bc3794fbd402c101727dad6d2e44d31dd789e1b8f684b1",
+    "ring_checks.py": "bcada4dfe0090f526a4720525de98cb89a2e1c506a28c755cadc59033e92e218",
+    "ring_driver.py": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
+    "ring_match_probe.py": "fb59b8c826cb2c8ba1977ea57753dd42606dc58f4b9df777964554d297dbfab5",
+    "run_revision1_smoke.py": "a3e404b12943d3ce6194d4477b8fb52c6f720482a44a0730d6c37880fdec1d7c",
+    "setup_checks.py": "42604cf59168ae40e00987e1a1a6d53f8cd6a80578e1b11f6b905ba90ea67559",
+    "stage2_checks.py": "ade64c93c2e3ea2aea6aa594bf73d9b9975e3b4437c3a82db8e98ee5bec4b2c2",
+    "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
+   }
+  },
   "recentre_delay_mt": {
    "digests": {
     "mt_ckpt": {
@@ -1393,12 +1499,12 @@
     "mt_losses": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "mt_turns": "b28460ba66cddf56c3caae3277e6900a5f256adee790f879c69b46aa926bc572"
    },
+   "digests_from": "source copy",
    "entry": "many_turn",
    "flags": [],
    "ring_driver_sha256": "9a366edf0fd17d6cadb2d1a7374cfa9ff38b125a6239f643bb2451ce007576e3",
    "script": null,
    "source": "recentre",
-   "source_dir": "results_local/recentre/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1453,12 +1559,12 @@
     "status": "complete",
     "turns": "7a68d37c6cd261627b5131887b3bfacc5b68c18bfb9b6ac4ab86855ec3d1fae7"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "4e73604e410cba65c0b6a174b2d5afae9bb3d4eec2e10230ab7a19a89bb22025",
-   "script": "csrrcd_run.py",
+   "script": "runner_recentre_dyn.py",
    "source": "recentre_dyn",
-   "source_dir": "results_local/recentre_dyn/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1513,12 +1619,12 @@
     "status": "complete",
     "turns": "7b6a947adee048660ca116ad9469579c9da294c034d12f9c08de455f8b87292b"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "4e73604e410cba65c0b6a174b2d5afae9bb3d4eec2e10230ab7a19a89bb22025",
-   "script": "csrrcd_run.py",
+   "script": "runner_recentre_dyn.py",
    "source": "recentre_dyn",
-   "source_dir": "results_local/recentre_dyn/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1572,12 +1678,12 @@
     },
     "turns": "832047bdc530105602a2f03f38a510b255323be1b105c135e9edbfbe97400216"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "4e73604e410cba65c0b6a174b2d5afae9bb3d4eec2e10230ab7a19a89bb22025",
    "script": null,
    "source": "recentre_dyn",
-   "source_dir": "results_local/recentre_dyn/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1625,12 +1731,12 @@
     },
     "turns": "d706bf8af97374f68324b3285fe90b48f2acd113f40bb8dc8e335e94dff6c50f"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "9a366edf0fd17d6cadb2d1a7374cfa9ff38b125a6239f643bb2451ce007576e3",
    "script": null,
    "source": "recentre",
-   "source_dir": "results_local/recentre/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1678,12 +1784,12 @@
     },
     "turns": "df252ac2cc780bbf6c4215648e5145a3e18e3cbc2e8bdc6a34b22f09ef4bd0d2"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "9a366edf0fd17d6cadb2d1a7374cfa9ff38b125a6239f643bb2451ce007576e3",
    "script": null,
    "source": "recentre",
-   "source_dir": "results_local/recentre/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1731,12 +1837,12 @@
     },
     "turns": "0745287e388412a75e3066e4f8376f4a4a105a433bc02bf8ca28083a7c80b99c"
    },
+   "digests_from": "source copy",
    "entry": "run",
    "flags": [],
    "ring_driver_sha256": "9a366edf0fd17d6cadb2d1a7374cfa9ff38b125a6239f643bb2451ce007576e3",
    "script": null,
    "source": "recentre",
-   "source_dir": "results_local/recentre/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1792,14 +1898,14 @@
     "status": "complete",
     "turns": "f6e8ce90fd86277a5b6a6e37b98104ee85760d4eecbf633c5a33044d73490eed"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "8b2119372f3322ab7e32d9a851a4480d800139bc4b0d73745b16858ae7b64c52",
-   "script": "csrrm2_run.py",
+   "script": "runner_remedy2.py",
    "source": "remedy2",
-   "source_dir": "results_local/remedy2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1855,14 +1961,14 @@
     "status": "complete",
     "turns": "6b2d3cb7d3aed23c5f2597154486cc89466c7086d7580f9a385c9cd7d90dd612"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "8b2119372f3322ab7e32d9a851a4480d800139bc4b0d73745b16858ae7b64c52",
-   "script": "csrrm2_run.py",
+   "script": "runner_remedy2.py",
    "source": "remedy2",
-   "source_dir": "results_local/remedy2/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1918,14 +2024,14 @@
     "status": "complete",
     "turns": "1448ac688e33a46f6e555cbbde3135e21a2ee14cd8a967c74cbc080eb913e358"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "aa0c6c9b2a7c824ae291ed0aa9fc83cc70ac2bdcdd1b1c71fcf8e62686812fe8",
-   "script": "csrrem_run.py",
+   "script": "runner_remedy.py",
    "source": "remedy",
-   "source_dir": "results_local/remedy/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -1981,14 +2087,14 @@
     "status": "complete",
     "turns": "a5c7c7ce0600686c321bfa50b8b700c1b1e67a62336475f334f0cb3d18d53f05"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [
     "--stop-growth=1.0"
    ],
    "ring_driver_sha256": "aa0c6c9b2a7c824ae291ed0aa9fc83cc70ac2bdcdd1b1c71fcf8e62686812fe8",
-   "script": "csrrem_run.py",
+   "script": "runner_remedy.py",
    "source": "remedy",
-   "source_dir": "results_local/remedy/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -2024,112 +2130,6 @@
     "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
    }
   },
-  "stage3d_painted": {
-   "digests": {
-    "final": {
-     "proton_0_momentum_mc": "480ec6c74cd543000393c6de3b5f59b09687b8990fe4b04d0426d13a8245672b",
-     "proton_0_population": "9ad5bbd6a8415805a8877a22468741759b394c4a86a785a90188875f2442a434",
-     "proton_0_position_m": "15ffe92c43effb9d470c6147c2e25b6a7ec4685705e8696c046fd9c88fa1c0ad",
-     "proton_1_momentum_mc": "70e73825df7743cbc35ae21fbf3e618378267e5c37f59e9fd8bf42f8d9eb3a2e",
-     "proton_1_population": "9ad5bbd6a8415805a8877a22468741759b394c4a86a785a90188875f2442a434",
-     "proton_1_position_m": "17d17cee5eea89b7208c19f10a83e7e38bdd61d947693bacc2460197ca6932e9"
-    },
-    "turns": "e7672f58ea8dbaa47d3677017c283664ca6d19ea183026dc1889289874c88a70"
-   },
-   "entry": "run",
-   "flags": [],
-   "ring_driver_sha256": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
-   "script": null,
-   "source": "stage3d",
-   "source_dir": "results_local/stage3d/driver/ring_driver",
-   "source_files_sha256": {
-    "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
-    "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
-    "compare_bitid.py": "c127b3666e2220c4b8c906179dd4635848ab53610af0442d02abe8e48960fbe0",
-    "compare_runs.py": "c4606f4db48bdcf595d0d2f668375a9bbbece9c276cc559b84a21eab51464867",
-    "damper.py": "5a865843235f94a01281feb4a7066283a215c03d68c0c07b1072561695255bc6",
-    "edyn_columns.py": "2afe5fa045c7f90869b6ce04dbd9356de065d5129829f208bf0689247acd490d",
-    "force_diagnostics.py": "bb92e63ff2718193de39495f34f9298e95026253da957990948edbb8508f96b5",
-    "injection.py": "4d71741fa5f56551e4ce6544e32215ce321b5f273669b6870521ba8867752908",
-    "intensity_scan.py": "887fb3d6e68900f3e80047feb7ac0b43ac9ef620b48befa8a584487703491461",
-    "lattice_linear.py": "c864241758b5ff20c0f22a416837a009a32d3d8e3113391995593ef946fb917f",
-    "launch_campaign.py": "9513d10ae371c99009eb9b8bf485ad5c8ee4c3e39ee4718adb779fe1e2571b31",
-    "launch_stage2.py": "8b09da812bf02bca034c425043a6fbbf105aca12278169af068d52467a5f9ded",
-    "longitudinal.py": "ee076be7e608886b8d036cc444dcaa08b3428ef6485105e7de5dd47222a9bf99",
-    "make_stage3b_configs.py": "9242aca212c54e081a3af3d359812e3bc098f0020e8c74999e0177f0a95de61b",
-    "many_turn.py": "512491a63a35ad4fdac96ca6488c0b784186186248f3de7f2336bf0f9626e790",
-    "mlx_pilot.py": "a4c3c139d175f9d6eebd431e355a300bb5754a3b29935ee67876b8be498743b1",
-    "mlx_pilot_ramp.py": "37f52091266aa93347e30c652bef94aad50fc6f04e8b2daf5df32d22620430bd",
-    "per_bunch_reference.py": "a975d69690a96ac7e123a320e93bd292a9a5d3f87804df251ff0698ae225e8b7",
-    "precision_check.py": "3603554aad6e975e57637647a3ab833b9e6663feb7d7059bae8561bb69e9e9b3",
-    "racetrack_bitid.py": "34cfa6b21c88e57d2420d48154de20decaf4df9d7d66841eaba27ac0120aa54e",
-    "racetrack_checks.py": "156f05d6a8d0e4c65dacc7f5dbb81b801154085726387c33739fc8f4e497051e",
-    "ramp.py": "c4b2184753e20430a5ce65e01d1ad7db303181edaf2b6d3ab94abe49a42c2654",
-    "ramp_checks.py": "0a64068cd9d1ba4b6a244d09c27909ffb545a240e6b923114cf61ca28fb6f0b1",
-    "ramp_setup.py": "036cc6d79091cc783522804ec7890b92fd06237ddac6fc7ad1d5c794885c45ca",
-    "rf_checks.py": "79747e76ae949afb22bc3794fbd402c101727dad6d2e44d31dd789e1b8f684b1",
-    "ring_checks.py": "bcada4dfe0090f526a4720525de98cb89a2e1c506a28c755cadc59033e92e218",
-    "ring_driver.py": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
-    "ring_match_probe.py": "fb59b8c826cb2c8ba1977ea57753dd42606dc58f4b9df777964554d297dbfab5",
-    "run_revision1_smoke.py": "a3e404b12943d3ce6194d4477b8fb52c6f720482a44a0730d6c37880fdec1d7c",
-    "setup_checks.py": "42604cf59168ae40e00987e1a1a6d53f8cd6a80578e1b11f6b905ba90ea67559",
-    "stage2_checks.py": "ade64c93c2e3ea2aea6aa594bf73d9b9975e3b4437c3a82db8e98ee5bec4b2c2",
-    "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
-   }
-  },
-  "stage3d_painted_slow": {
-   "digests": {
-    "final": {
-     "proton_0_momentum_mc": "6fc75b438d8ec0ad49b6861f7942fa48e28ba46936de68e5bca8da59566555da",
-     "proton_0_population": "601d6c3fac77ef5a25d981b57d39256211373cdd15fa476ccc2f3a7093007e1c",
-     "proton_0_position_m": "9faf1066399bcf9ad111e542c5066840c1619c4a3a885a86ff13c7a170e34d37",
-     "proton_1_momentum_mc": "dc933760837bef271cf50826575db1b09abe8aa406a79b085a350a9238a714ef",
-     "proton_1_population": "601d6c3fac77ef5a25d981b57d39256211373cdd15fa476ccc2f3a7093007e1c",
-     "proton_1_position_m": "f03fa8596595624c5565a8937f82906298f27daf9f1d3c21242fed02ad9e481d"
-    },
-    "turns": "78d5d2624984f333a5432408fdf7c7f048e7a8b9a109e36293e26d3a80b83b11"
-   },
-   "entry": "run",
-   "flags": [],
-   "ring_driver_sha256": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
-   "script": null,
-   "source": "stage3d",
-   "source_dir": "results_local/stage3d/driver/ring_driver",
-   "source_files_sha256": {
-    "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
-    "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
-    "compare_bitid.py": "c127b3666e2220c4b8c906179dd4635848ab53610af0442d02abe8e48960fbe0",
-    "compare_runs.py": "c4606f4db48bdcf595d0d2f668375a9bbbece9c276cc559b84a21eab51464867",
-    "damper.py": "5a865843235f94a01281feb4a7066283a215c03d68c0c07b1072561695255bc6",
-    "edyn_columns.py": "2afe5fa045c7f90869b6ce04dbd9356de065d5129829f208bf0689247acd490d",
-    "force_diagnostics.py": "bb92e63ff2718193de39495f34f9298e95026253da957990948edbb8508f96b5",
-    "injection.py": "4d71741fa5f56551e4ce6544e32215ce321b5f273669b6870521ba8867752908",
-    "intensity_scan.py": "887fb3d6e68900f3e80047feb7ac0b43ac9ef620b48befa8a584487703491461",
-    "lattice_linear.py": "c864241758b5ff20c0f22a416837a009a32d3d8e3113391995593ef946fb917f",
-    "launch_campaign.py": "9513d10ae371c99009eb9b8bf485ad5c8ee4c3e39ee4718adb779fe1e2571b31",
-    "launch_stage2.py": "8b09da812bf02bca034c425043a6fbbf105aca12278169af068d52467a5f9ded",
-    "longitudinal.py": "ee076be7e608886b8d036cc444dcaa08b3428ef6485105e7de5dd47222a9bf99",
-    "make_stage3b_configs.py": "9242aca212c54e081a3af3d359812e3bc098f0020e8c74999e0177f0a95de61b",
-    "many_turn.py": "512491a63a35ad4fdac96ca6488c0b784186186248f3de7f2336bf0f9626e790",
-    "mlx_pilot.py": "a4c3c139d175f9d6eebd431e355a300bb5754a3b29935ee67876b8be498743b1",
-    "mlx_pilot_ramp.py": "37f52091266aa93347e30c652bef94aad50fc6f04e8b2daf5df32d22620430bd",
-    "per_bunch_reference.py": "a975d69690a96ac7e123a320e93bd292a9a5d3f87804df251ff0698ae225e8b7",
-    "precision_check.py": "3603554aad6e975e57637647a3ab833b9e6663feb7d7059bae8561bb69e9e9b3",
-    "racetrack_bitid.py": "34cfa6b21c88e57d2420d48154de20decaf4df9d7d66841eaba27ac0120aa54e",
-    "racetrack_checks.py": "156f05d6a8d0e4c65dacc7f5dbb81b801154085726387c33739fc8f4e497051e",
-    "ramp.py": "c4b2184753e20430a5ce65e01d1ad7db303181edaf2b6d3ab94abe49a42c2654",
-    "ramp_checks.py": "0a64068cd9d1ba4b6a244d09c27909ffb545a240e6b923114cf61ca28fb6f0b1",
-    "ramp_setup.py": "036cc6d79091cc783522804ec7890b92fd06237ddac6fc7ad1d5c794885c45ca",
-    "rf_checks.py": "79747e76ae949afb22bc3794fbd402c101727dad6d2e44d31dd789e1b8f684b1",
-    "ring_checks.py": "bcada4dfe0090f526a4720525de98cb89a2e1c506a28c755cadc59033e92e218",
-    "ring_driver.py": "89e6c604e94e3be77295d3c79209f41003e94a00c992f402af9c6343ed272da3",
-    "ring_match_probe.py": "fb59b8c826cb2c8ba1977ea57753dd42606dc58f4b9df777964554d297dbfab5",
-    "run_revision1_smoke.py": "a3e404b12943d3ce6194d4477b8fb52c6f720482a44a0730d6c37880fdec1d7c",
-    "setup_checks.py": "42604cf59168ae40e00987e1a1a6d53f8cd6a80578e1b11f6b905ba90ea67559",
-    "stage2_checks.py": "ade64c93c2e3ea2aea6aa594bf73d9b9975e3b4437c3a82db8e98ee5bec4b2c2",
-    "tunes.py": "337b37fe93b94d3243b98686e35f6f72c1992a2bf0a7ac5ffe1a4738a2c8eadf"
-   }
-  },
   "wallfb_noise": {
    "digests": {
     "final": {
@@ -2151,12 +2151,12 @@
     "turns": "357421240839ecc4ee15f550615d6c7d8ead759e93bb4c3bcb8cdffc2167c83d",
     "wallfb.jsonl": "58f358fbcffabcadd0df0792e1ba102bb825bc01d0ec522fe923e2331ca6f0e2"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "725d7d88292fb74318b299012df897cb552b6fad35998571e679b3c1eecae82b",
-   "script": "csrwr_run.py",
+   "script": "runner_wallfb.py",
    "source": "wallfb",
-   "source_dir": "results_local/wallfb/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -2214,12 +2214,12 @@
     "turns": "81e3c255b711b2dc25a910c0fbc068b4459f529cd6044669ba48fcbf276be8a1",
     "wallfb.jsonl": "ddd3c975b899d64c202854ac5e218a4421c095846b52b6543a5f5901a4aaa2a4"
    },
-   "entry": "study",
+   "digests_from": "source copy",
+   "entry": "diag",
    "flags": [],
    "ring_driver_sha256": "725d7d88292fb74318b299012df897cb552b6fad35998571e679b3c1eecae82b",
-   "script": "csrwr_run.py",
+   "script": "runner_wallfb.py",
    "source": "wallfb",
-   "source_dir": "results_local/wallfb/driver/ring_driver",
    "source_files_sha256": {
     "bitid_cases.py": "03af0955d842e7f59590ecd92341e022809f6ce7914aa9ee4476107769d98f5c",
     "bitid_run.py": "cfd48b3202ef4eddd62f7f5c7e9a6568f55e4ba8bcc195de6ce3c67408f327b0",
@@ -2258,12 +2258,11 @@
   }
  },
  "environment": {
-  "lwi_root": "/Users/benjaminfolsom/work/extracurr/LW_integrator",
   "machine": "arm64",
   "made": "2026-10-28 03:05",
   "numpy": "2.4.2",
   "platform": "macOS-27.0.1-arm64-arm-64bit",
-  "python": "/Users/benjaminfolsom/work/extracurr/LW_integrator/.venv/bin/python",
+  "python_version": "3.12",
   "scipy": "1.17.0",
   "threads": {
    "NUMBA_NUM_THREADS": "1",

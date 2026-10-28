@@ -3,8 +3,8 @@
 The native deposit, gather, integrated-cell Green, and Boris kernels are used.
 Only the longitudinal periodic convolution and external focusing live here.
 
-lwi_ring: the consolidated driver (the study's ring_driver/ring_driver.py plus every feature of the study copies behind a Config
-option; all defaults reproduce ring_driver/ring_driver.py bit for bit). See the package README for the option map.
+lwi_ring: the ring driver with every feature behind a Config option; the defaults give the baseline smooth-ring driver. See the
+package README for the option map.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from scipy.stats import qmc
 
 HERE = Path(__file__).resolve().parent
 # Output root (solver locks, default run directories, many_turn's output check): $LWI_RING_OUT if set, else results_local/ring_pic
-# below the working directory. The driver copies used <copy>/../results_local/ring_pic; set_output_root() changes it at run time.
+# below the working directory. set_output_root() changes it at run time.
 OUT = Path(os.environ.get("LWI_RING_OUT", str(Path.cwd() / "results_local/ring_pic"))).resolve()
 # Native Numba decorators may create their cache directory during import.
 # Keep that cache inside the permitted machine-local output tree as well.
@@ -151,7 +151,7 @@ class Config:
     rf_mismatch_dp: float = 1.0               # scale the matched delta by this (1 = matched)
     rf_mismatch_psi: float = 1.0              # scale the matched psi by this
     rf_offset_psi_rad: float = 0.0            # displace the bunch in RF phase
-    # ---- Stage-2 additions (compensated storage ring); every default reproduces the earlier drivers bit for bit.
+    # ---- Periodic-lattice, solenoid-column and RF additions; every default reproduces the baseline driver bit for bit.
     # (b) Periodic solenoid lattice: the racetrack generalised to P identical cells [straight, arc]
     # (straight_length_m, arc_length_m per cell; P (straight + arc) = circumference). P = 2 is the racetrack.
     # With alternating polarity the solenoid sign flips from cell to cell. solenoid_retune adds the Larmor
@@ -181,7 +181,7 @@ class Config:
     column_local_fraction: float | None = None
     column_follow_orbit: bool = False
     column_sigma_follow: bool = False
-    # Stage 3d: electron-column transverse shape with column_sigma_follow: "gaussian" (default), "waterbag" (parabolic, hard edge
+    # Electron-column transverse shape with column_sigma_follow: "gaussian" (default), "waterbag" (parabolic, hard edge
     # sqrt(6) sigma_rms) or "painted" (the projection of the 4-D density (1 - rho^2/R^2)^p with p = injection_painted_p, R^2 = 2 (p + 3)
     # sigma_rms^2; p = 0 is the waterbag).
     column_profile: str = "gaussian"
@@ -197,7 +197,7 @@ class Config:
     # ball: transverse density parabolic, hard edge sqrt(6) sigma). sigma_m is always the rms size.
     # injection_edge_m (truncated only) instead fixes the hard transverse edge radius and solves the cut.
     injection_profile: str = "gaussian"
-    # Stage 3d: injection_profile "painted" is the 4-D density (1 - rho^2/R^2)^p of the normalised amplitude rho (p > -1; p = 0 the
+    # injection_profile "painted" is the 4-D density (1 - rho^2/R^2)^p of the normalised amplitude rho (p > -1; p = 0 the
     # waterbag, p -> -1 the Kapchinsky-Vladimirsky shell). rho^2/R^2 is Beta(2, 1 + p) distributed, R^2 = 2 (p + 3) sigma_m^2.
     injection_painted_p: float = -0.5
     injection_cut: float = 3.0
@@ -212,7 +212,7 @@ class Config:
     injection_paint_sigma_ratio: float = 0.2
     injection_paint_phase_deg: float = 0.0
     start_on_closed_orbit: bool = False       # displace the injected beam onto the closed orbit (xy and slopes)
-    # ---- Stage-2b additions (compensated rapid-cycling synchrotron, see ramp.py and README); all inert while
+    # ---- Ramp additions (rapid-cycling synchrotron, see ramp.py and README); all inert while
     # ramp_final_energy_mev is None. The reference energy follows a programme from energy_mev to
     # ramp_final_energy_mev in ramp_time_s ("linear" in kinetic energy, "sine" = half-sine in momentum) and then
     # holds. The RF follows (rf_programme: constant | min_phase | table), the smooth focusing is ramped with the
@@ -238,14 +238,14 @@ class Config:
     ramp_solenoid_follow: float = 0.0
     ramp_quad_scale: float = 1.0              # scale of the quadrupole make-up (1 = tunes held exactly; test knob)
     ramp_regrid_tol: float = 0.01             # rebuild the solver's Green function when gamma moved by this fraction
-    # csr-ramp additions (2026-10-27; inert at their defaults): ramp_shape "dual" adds a second magnet harmonic,
+    # Further ramp options (inert at their defaults): ramp_shape "dual" adds a second magnet harmonic,
     # b(s) = [(1 - cos pi s) + (alpha/4)(1 - cos 2 pi s)]/2 of the momentum swing (start (1 + alpha) times steeper, same end points);
     # ramp_shape "table": kinetic energy interpolated in ramp_energy_table (e.g. a real cycle mapped onto the twin);
     # dynamic (self-consistent) electrons follow the ramp: birth weight f C/L_columns, confining field x the solenoid scale,
     # fixed gun size x the ramp_column_sigma scale, station side kick at the present rigidity.
     ramp_dual_alpha: float = 0.0
     ramp_energy_table: list | None = None     # ramp_shape "table": [[t_s, kinetic energy MeV], ...] (e.g. a real cycle mapped onto the twin)
-    # ---- Dipole-mode mitigation additions (2026-10-22, damper.py); all inert at their defaults.
+    # ---- Dipole-mode mitigation (damper.py); all inert at their defaults.
     # Transverse feedback damper: a slice-by-slice (damper_slots azimuthal slices) proportional damper. The pickup in the middle of
     # arc damper_pickup_arc reads the mean position of each slice (minus the closed orbit, plus damper_noise_m rms noise); the kicker in the
     # middle of arc damper_arc gives the same slice, damper_delay_turns (>= 0 whole turns; 0 needs the kicker downstream of the pickup)
@@ -262,7 +262,7 @@ class Config:
     diag_bins: int = 0
     # error_trim_dk: extra relative gradient errors (same convention as error_dk_rms) added to the lattice-error locations (trim quadrupoles).
     error_trim_dk: list | None = None
-    # ---- Column-drift additions (2026-10-23, report_column_drift.md); all inert at their defaults.
+    # ---- Column drift; all inert at their defaults.
     # column_centroid_drift: each (rigid) column carries a per-slice electron centroid e (complex x + i y, relative to the column axis),
     # born on the axis at the column entrance and E x B-drifting about the local proton slice centroid u as de/ds = i sigma Omega (u - e)
     # (sigma the sign of the solenoid field along the beam). Omega = lambda_p (nbar - 1/(pi b^2)) / (2 eps0 |B| beta gamma^2 c) per lab
@@ -279,12 +279,12 @@ class Config:
     column_drift_bins_per_step: int = 2
     column_drift_smooth_m: float = 2.0
     column_sigma_flux: bool = False
-    # ---- Electron-size tolerance (2026-10-24, report_electron_size_tolerance.md); inert at the default.
+    # ---- Electron-size tolerance; inert at the default.
     # column_drift_omega_overlap: the drift rate uses the overlap density int rho_e rho_p dA of the (gaussian) column profile with a
     # gaussian proton profile of the local matched rms (sigma_at without lens_sigma_ratio and flux), instead of the column's own
     # int rho_e^2 dA (which assumes protons matched to the column). The two are equal for lens_sigma_ratio = 1 without column_sigma_flux.
     column_drift_omega_overlap: bool = False
-    # ---- Electron re-centring (2026-10-24, report_electron_recentring.md); inert at column_recentre_stations = 0.
+    # ---- Electron re-centring; inert at column_recentre_stations = 0.
     # K = column_recentre_stations stations at L k/(K+1), k = 1..K, inside every (sub-)column. At a station the electron centroid of each
     # slice is moved by d = -eta (m - t): m = e + n (electron monitor, n complex Gaussian noise of rms column_recentre_noise_m per plane and
     # slice) or, for column_recentre_mode = "feedforward", the model value eh, which drifts like e but about the proton slice centroid h
@@ -303,7 +303,7 @@ class Config:
     column_recentre_side_kick: float = 1.0
     column_recentre_seed: int = 0
     column_recentre_delay_steps: int = 0
-    # ---- Electron m = 2 / tune-chaos study (2026-10-24, report_electron_m2_and_tune_chaos.md); all inert at their defaults, and all
+    # ---- Electron m = 2 and tune-chaos options; all inert at their defaults, and all
     # (except none) for column_electrons = "dynamic" only (edyn_columns.py).
     # dyn_birth_sigma: rms of the electrons at birth: "follow" (default: the local matched size, ElectronLens.sigma_at), "fixed" (the gun's
     # fixed size sigma_m * lens_sigma_ratio at every birth), "proton" (the measured rms of the protons entering with them, round: gun size
@@ -330,9 +330,9 @@ class Config:
     column_recentre_m2_target: str = "birth"
     column_recentre_m2_kick: float = 1.0       # scale of the shaping field's kick on the protons (1 = the field's own kick; 0 = test only)
     column_recentre_dipole: float = 1.0
-    # ---- m = 2 remedy study (2026-10-25, report_m2_remedies.md; dynamic electrons with stations only; inert at the defaults).
+    # ---- m = 2 remedies (dynamic electrons with stations only; inert at the defaults).
     # rem_station_pos: station positions as fractions of the column length (K = column_recentre_stations values in (0, 1), increasing),
-    # instead of L k/(K+1); with dyn_resets > 1 (allowed with stations in this copy) each station must lie inside a sub-column.
+    # instead of L k/(K+1); with dyn_resets > 1 (allowed with stations) each station must lie inside a sub-column.
     # rem_delay_steps J > 0: every station acts on the fit of the same electrons taken J step paths upstream (a pickup J * C/steps_per_turn
     # before the station, inside the same (sub-)column), the counterpart of column_recentre_delay_steps of the centroid model.
     # rem_m2_noise: complex Gaussian noise (rms per component) added to the fitted strain q at every station fit (electron-ellipse
@@ -345,7 +345,7 @@ class Config:
     # the rms (per plane, about the column axis) of all live protons inside the columns (a programmed gun field ratio, not a fast loop).
     rem_birth_ratio: float = 1.0
     rem_birth_track: bool = False
-    # ---- Realistic electron profiles (2026-10-25, report_dynamic_profiles.md; dynamic electrons only; inert at the defaults).
+    # ---- Realistic electron profiles (dynamic electrons only; inert at the defaults).
     # dyn_profile: transverse birth profile of the electrons: "gaussian" (default, the truncated Gaussian draw), "painted" (the projection
     # of the 4-D density (1 - rho^2/R^2)^p of injection_profile "painted", p = dyn_painted_p: radial density (1 - r^2/R^2)^(p + 1),
     # R^2 = 2 (p + 3) rms^2), "flattop" (uniform disc, R = 2 rms: the KV-like column) or "hollow" (uniform annulus, inner/outer radius
@@ -361,7 +361,7 @@ class Config:
     dyn_ellipticity: float = 0.0
     dyn_ellipse_angle_deg: float = 0.0
     dyn_match_profile: bool = False
-    # ---- Recycled electrons (2026-10-27, csr-recycle, report_recycled_electrons.md; dynamic electrons on the straights of a periodic
+    # ---- Recycled electrons (dynamic electrons on the straights of a periodic
     # lattice; inert unless recycle_stride > 0). The electrons leaving column k are not collected but carried through a proton-free
     # transport (path length equal to the ring's, so they meet the same proton slice) and re-injected into column k + recycle_stride
     # (2: the leapfrog of two interleaved streams). With dyn_resets = R > 1 the units are the R sub-columns of each column. Fresh (gun) electrons only at a stream start: the first recycle_stride columns of
@@ -387,7 +387,7 @@ class Config:
     recycle_seed: int = 0
     # diag_bin_centroids adds the bin centroids (x, y per diag_bins bin, metres from the closed orbit) to the "coherent" record.
     diag_bin_centroids: bool = False
-    # ---- Segmented wall-electrode feedback (2026-10-26, csr-wallring, report_wall_feedback_ring.md; dynamic electrons on the straights of a
+    # ---- Segmented wall-electrode feedback (dynamic electrons on the straights of a
     # periodic lattice; inert unless wfb_enable). See wallfb.py: nseg = round(L / wfb_segment_m) segments per column, wfb_sectors azimuthal
     # electrodes in a bore of wfb_bore_m, each segment driven from the net (proton + electron) l = 1, 2 wall signal of a pickup
     # wfb_pickup_offset segments upstream (slices of wfb_bin_m in the co-moving frame), hold law with gains wfb_gain1/2, orientation
@@ -524,8 +524,8 @@ class Config:
                 if (self.column_recentre_m2 or self.column_recentre_dipole != 1.0) and not self.column_recentre_stations:
                     raise ValueError("column_recentre_m2 and column_recentre_dipole need column_recentre_stations")
             if self.column_electrons == "dynamic":
-                # lwi_ring: the centroid-model names column_drift_resets / column_recentre_delay_steps also act on dynamic electrons
-                # (aliases of dyn_resets / rem_delay_steps; the copies ignored them there). Both set and different is an error.
+                # the centroid-model names column_drift_resets / column_recentre_delay_steps also act on dynamic electrons
+                # (aliases of dyn_resets / rem_delay_steps). Both set and different is an error.
                 if self.dyn_resets != 1 and self.column_drift_resets != 1 and self.dyn_resets != self.column_drift_resets:
                     raise ValueError("dyn_resets and column_drift_resets are the same option for dynamic electrons: set one")
                 if self.rem_delay_steps and self.column_recentre_delay_steps and self.rem_delay_steps != self.column_recentre_delay_steps:
@@ -811,8 +811,22 @@ def set_output_root(path: str | Path) -> Path:
     return OUT
 
 
+def wait_for_cap(wall_limit_s: float | None = None) -> None:
+    """Optional shared-machine throttle: if $LWI_RING_CAP_FILE names an existing file, wait while the integer in it is below
+    $RING_REQUIRED_CAP (default 2). Unset (the default) means no waiting; a bounded run (wall_limit_s) raises instead of waiting."""
+    name = os.environ.get("LWI_RING_CAP_FILE")
+    if not name:
+        return
+    cap = Path(name)
+    while cap.exists() and int(cap.read_text()) < int(os.environ.get("RING_REQUIRED_CAP", "2")):
+        if wall_limit_s:
+            raise RuntimeError("compute cap does not permit bounded check")
+        print("Waiting for compute cap headroom", flush=True)
+        time.sleep(10)
+
+
 def require_acceptance(directory: str | Path) -> dict:
-    """The copies' production gate: the setup checks' evidence (checks.json in `directory`) must pass and hash this driver.
+    """Optional production gate: the setup checks' evidence (checks.json in `directory`) must pass and hash this driver.
 
     lwi_ring does not ship the setup checks (they stay in ring_driver/); its own gate is the pytest suite. The function is kept for
     launchers that run the setup checks against this package and store the evidence next to their configuration.
@@ -1914,7 +1928,7 @@ class ElectronLens:
 
 
 class ColumnDrift:
-    """Per-slice electron-column centroid e (Config.column_centroid_drift; report_column_drift.md).
+    """Per-slice electron-column centroid e (Config.column_centroid_drift).
 
     The electrons of a column ride with the proton slice they were born under, so their state lives on lab bins of width
     C/(steps_per_turn m) that move m bins per step (dt = T_rev/steps_per_turn exactly). advance() is called once per step at the
@@ -2381,12 +2395,8 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
     for step in range(1, total+1):
         if cfg.wall_limit_s and time.monotonic()-start > cfg.wall_limit_s:
             raise TimeoutError(f"bounded run exceeded {cfg.wall_limit_s} s")
-        if step % 64 == 1 and Path("/private/tmp/compute_cap").exists():
-            while int(Path("/private/tmp/compute_cap").read_text()) < int(os.environ.get("RING_REQUIRED_CAP", "2")):
-                if cfg.wall_limit_s:
-                    raise RuntimeError("compute cap does not permit bounded check")
-                print("Waiting for compute_cap headroom", flush=True)
-                time.sleep(10)
+        if step % 64 == 1:
+            wait_for_cap(cfg.wall_limit_s)
         tick = time.monotonic()
         if ramp:
             dt = ramp.begin_step(protons)
@@ -2552,7 +2562,7 @@ def _version() -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """lwi-ring-driver: one ring_driver.run case (the copies' ring_driver.py command line, without --checks)."""
+    """lwi-ring-driver: one driver.run case from the command line."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--set", action="append", default=[], metavar="KEY=JSON", help="override a Config field (JSON value)")
@@ -2564,7 +2574,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steps-per-turn", type=int)
     parser.add_argument("--pilot-steps", type=int, help="bounded initial pilot, not a turn study")
     parser.add_argument("--solver-slots", type=int, choices=(1,2,3), default=1)
-    parser.add_argument("--require-acceptance", type=Path, metavar="DIR", help="apply the copies' checks.json gate from DIR")
+    parser.add_argument("--require-acceptance", type=Path, metavar="DIR", help="apply the checks.json acceptance gate from DIR")
     args = parser.parse_args(argv)
     OUT.mkdir(parents=True, exist_ok=True)
     with solver_lock(args.solver_slots):

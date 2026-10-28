@@ -1,23 +1,33 @@
-"""Make the bit-identity references: run every case with a scratch snapshot of its source copy, then with lwi_ring, and compare.
+"""Regenerate the bit-identity reference digests in tests/data/references.json.
 
-usage: python tools/make_references.py [--jobs=1|2] [--study=DIR] [--scratch=DIR] [--slow] [--only=NAME,...] [--no-write]
-  --study    the compensated_storage_ring study directory (default: the parent of this package)
-  --scratch  where snapshots and outputs go (default: STUDY/results_local/lwi_ring/refs)
-Writes tests/data/references.json (reference digests of every case run, with the source files' hashes and the environment) unless
---no-write, and SCRATCH/compare.json (reference and lwi_ring digests side by side). The source copies are only read: each case runs
-on a fresh copy of the copy's directory (and of its runner script) inside SCRATCH.
+usage: python tools/make_references.py [--sources=DIR] [--scratch=DIR] [--jobs=1|2] [--slow] [--only=NAME,...] [--no-write]
+                                       [--busy-pattern=REGEX [--max-busy=10]]
 
-Compute gate (the study's shared-machine rule): a process is started only while fewer than 10 study compute processes are busy (python at
->= 25% CPU whose command mentions csr, ring_driver, many_turn, impactx, xsuite, warpx or lw) and at most --jobs of ours run.
+Default mode (from the package): every case is run with lwi_ring itself and its digests replace the stored ones. Use this after an
+intentional numerical change, or on another platform build (different NumPy/SciPy/BLAS), where round-off can change the digests. The
+stored digests then describe lwi_ring on that build, not the earlier driver versions.
+
+--sources=DIR (optional comparison with the earlier driver versions): each case is also run with a scratch snapshot of the version it
+consolidates, and the two digest sets are compared; the stored digests are the earlier version's. DIR holds <label>/ for every label in
+tests/cases.py SOURCES (the directory with that version's ring_driver.py and modules) and runners/<script> for the runner scripts
+named in the cases. The originals are only read.
+
+Other options:
+  --scratch  where snapshots and outputs go (default: a new temporary directory)
+  --no-write do not touch tests/data/references.json (SCRATCH/compare.json is still written)
+  --busy-pattern  optional compute gate for shared machines: a case starts only while fewer than --max-busy (default 10) python
+                  processes at >= 25% CPU match this regular expression (see tools/gated.py); no gate without it
+Environment: LWI_ROOT (optional) is a LW Integrator checkout to put on PYTHONPATH when `core` is not installed; LWI_PYTHON is the
+interpreter for the case runs (default: this one).
 """
 from __future__ import annotations
 
 import json
 import os
 import platform
-import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -25,42 +35,38 @@ from pathlib import Path
 
 PKG = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PKG / "tests"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cases import ALL_CASES, CASES, SLOW_CASES  # noqa: E402
+import gated  # noqa: E402
 import harness  # noqa: E402
 
-PATTERN = r"csr|ring_driver|many_turn|impactx|xsuite|warpx|lw"
-LWI = Path(os.environ.get("LWI_ROOT", str(Path.home() / "work/extracurr/LW_integrator")))
-PY = os.environ.get("LWI_PYTHON", str(LWI / ".venv/bin/python"))
+PY = os.environ.get("LWI_PYTHON", sys.executable)
 LOCK = threading.Lock()
-
-
-def busy() -> int:
-    out = subprocess.run(["ps", "-axo", "%cpu=,command="], capture_output=True, text=True).stdout
-    n = 0
-    for line in out.splitlines():
-        cpu, _, cmd = line.strip().partition(" ")
-        try:
-            hot = float(cpu) >= 25
-        except ValueError:
-            continue
-        n += hot and "python" in cmd.split(" ")[0].lower() and bool(re.search(PATTERN, cmd, re.I))
-    return n
+BUSY_PATTERN: str | None = None
+MAX_BUSY = 10
 
 
 def gate(label: str) -> None:
+    if not BUSY_PATTERN:
+        return
     while True:
         with LOCK:
-            n = busy()
-            if n < 10:
+            n = gated.busy(BUSY_PATTERN)
+            if n < MAX_BUSY:
                 print(time.strftime("%H:%M:%S"), f"start {label} ({n} busy)", flush=True)
                 time.sleep(3)          # let the new process show up in ps before the next gate decision
                 return
         time.sleep(2)
 
 
-def env() -> dict:
+def pythonpath(*extra: Path) -> str:
+    lwi = os.environ.get("LWI_ROOT")
+    return os.pathsep.join([*map(str, extra), *([lwi] if lwi else [])])
+
+
+def env(*extra: Path) -> dict:
     e = dict(os.environ, **harness.THREADS, PYTHONDONTWRITEBYTECODE="1")
-    e["PYTHONPATH"] = str(LWI)
+    e["PYTHONPATH"] = pythonpath(*extra)
     return e
 
 
@@ -72,33 +78,39 @@ print("DIGESTS " + json.dumps(harness.run_package(sys.argv[1], __import__("pathl
 '''
 
 
-def run_case(name: str, scratch: Path) -> dict:
-    gate(f"case {name}")
-    t0 = time.time()
-    ref, prov = harness.run_reference(name, STUDY, scratch / "ref", PY, env())
-    t1 = time.time()
-    # same slot: the lwi_ring run follows the reference immediately (one gated start per case, one busy process of ours at a time)
-    e = env()
-    e["PYTHONPATH"] = os.pathsep.join([str(LWI), str(PKG / "src")])
-    root = scratch / "pkg"
-    proc = subprocess.run([PY, "-B", "-c", PKG_RUNNER, name, str(root), str(PKG / "tests")], env=e, capture_output=True, text=True,
-                          cwd=scratch)
+def run_package(name: str, scratch: Path) -> dict:
+    proc = subprocess.run([PY, "-B", "-c", PKG_RUNNER, name, str(scratch / "pkg"), str(PKG / "tests")], env=env(PKG / "src"),
+                          capture_output=True, text=True, cwd=scratch)
     (scratch / f"pkg_{name}.log").write_text(proc.stdout + proc.stderr)
     if proc.returncode:
         raise RuntimeError(f"lwi_ring run {name} failed:\n{proc.stderr[-3000:]}")
-    new = json.loads([line for line in proc.stdout.splitlines() if line.startswith("DIGESTS ")][-1][8:])
+    return json.loads([line for line in proc.stdout.splitlines() if line.startswith("DIGESTS ")][-1][8:])
+
+
+def run_case(name: str, scratch: Path, sources: Path | None) -> dict:
+    gate(f"case {name}")
+    t0 = time.time()
+    row = dict(name=name)
+    if sources is not None:
+        row["reference"], row["provenance"] = harness.run_reference(name, sources, scratch / "ref", PY, env())
+    t1 = time.time()
+    # same gated slot: the lwi_ring run follows the reference immediately
+    row["lwi_ring"] = run_package(name, scratch)
     t2 = time.time()
-    row = dict(name=name, reference=ref, lwi_ring=new, identical=ref == new, provenance=prov, ref_s=t1 - t0, pkg_s=t2 - t1)
-    print(time.strftime("%H:%M:%S"), name, "IDENTICAL" if row["identical"] else "DIFFERENT", f"({t1 - t0:.0f} s / {t2 - t1:.0f} s)",
-          flush=True)
+    row["identical"] = row["reference"] == row["lwi_ring"] if sources is not None else True
+    row.update(ref_s=t1 - t0, pkg_s=t2 - t1)
+    print(time.strftime("%H:%M:%S"), name, ("IDENTICAL" if row["identical"] else "DIFFERENT") if sources is not None else "done",
+          f"({t1 - t0:.0f} s / {t2 - t1:.0f} s)", flush=True)
     return row
 
 
 def main() -> None:
-    global STUDY
+    global BUSY_PATTERN, MAX_BUSY
     opts = dict(a.split("=", 1) if "=" in a else (a, "1") for a in sys.argv[1:])
-    STUDY = Path(opts.get("--study", str(PKG.parent))).resolve()
-    scratch = Path(opts.get("--scratch", str(STUDY / "results_local/lwi_ring/refs"))).resolve()
+    sources = Path(opts["--sources"]).resolve() if "--sources" in opts else None
+    scratch = Path(opts["--scratch"]).resolve() if "--scratch" in opts else Path(tempfile.mkdtemp(prefix="lwi_ring_refs_"))
+    BUSY_PATTERN = opts.get("--busy-pattern")
+    MAX_BUSY = int(opts.get("--max-busy", "10"))
     scratch.mkdir(parents=True, exist_ok=True)
     names = list(CASES) + (list(SLOW_CASES) if "--slow" in opts else [])
     if "--only" in opts:
@@ -107,27 +119,37 @@ def main() -> None:
     compare_path = scratch / "compare.json"
     results = json.loads(compare_path.read_text()) if compare_path.exists() else {}
     with ThreadPoolExecutor(jobs) as pool:
-        for row in pool.map(lambda n: _safe(n, scratch), names):
+        for row in pool.map(lambda n: _safe(n, scratch, sources), names):
             results[row["name"]] = row
             compare_path.write_text(json.dumps(results, indent=1))
     if "--no-write" not in opts:
         refp = PKG / "tests/data/references.json"
         refs = json.loads(refp.read_text()) if refp.exists() else dict(cases={})
         import numpy, scipy
-        refs["environment"] = dict(python=PY, platform=platform.platform(), machine=platform.machine(), numpy=numpy.__version__,
-                                   scipy=scipy.__version__, lwi_root=str(LWI), threads=harness.THREADS,
+        refs["environment"] = dict(python_version=platform.python_version(), platform=platform.platform(), machine=platform.machine(),
+                                   numpy=numpy.__version__, scipy=scipy.__version__, threads=harness.THREADS,
                                    made=time.strftime("%Y-%m-%d %H:%M"))
-        for name, row in results.items():
-            if "reference" in row:
-                refs["cases"][name] = dict(digests=row["reference"], **row["provenance"])
+        for name in names:
+            row = results.get(name, {})
+            if "lwi_ring" not in row:
+                continue
+            source, entry, _, script, flags = ALL_CASES[name]
+            case = refs["cases"].setdefault(name, dict(source=source, entry=entry, script=script, flags=flags))
+            if sources is not None:
+                case.update(row["provenance"], digests=row["reference"], digests_from="source version")
+            else:
+                case.update(digests=row["lwi_ring"], digests_from="package")
         refp.write_text(json.dumps(refs, indent=1, sort_keys=True) + "\n")
     bad = [n for n in names if not results.get(n, {}).get("identical")]
-    print("all identical" if not bad else f"not identical: {bad}")
+    if sources is not None:
+        print("all identical" if not bad else f"not identical or failed: {bad}")
+    else:
+        print("done" if not bad else f"failed: {bad}")
 
 
-def _safe(name: str, scratch: Path) -> dict:
+def _safe(name: str, scratch: Path, sources: Path | None) -> dict:
     try:
-        return run_case(name, scratch)
+        return run_case(name, scratch, sources)
     except Exception as err:          # keep going; the failure is recorded
         print(time.strftime("%H:%M:%S"), name, "ERROR", str(err)[-500:], flush=True)
         return dict(name=name, error=str(err)[-3000:], identical=False)

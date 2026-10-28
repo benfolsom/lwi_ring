@@ -35,7 +35,7 @@ class StopRun(ValueError):
 
 
 class ColumnDiagnostics:
-    """Moment accumulators and per-turn rows of the study runners (see the module doc)."""
+    """Moment accumulators and per-turn rows of the runner (see the module doc)."""
 
     NS = 8
 
@@ -193,7 +193,7 @@ class ColumnDiagnostics:
 
 def run_case(cfg: rd.Config, out: Path, diagnostics: bool = True, every: int = 4, shape: bool = False,
              stop_growth: float | None = None) -> dict:
-    """One driver.run case with the study diagnostics; returns the runner's status dict (complete / stopped / aborted)."""
+    """One driver.run case with the m = 0 / m = 2 column diagnostics; returns the runner's status dict (complete / stopped / aborted)."""
     out = Path(out)
     if not diagnostics:
         try:

@@ -24,7 +24,7 @@ Model, in the lab frame of the ring driver:
 * They are a third species ("electron") of the field solver: they source fields for the protons and
   feel the proton fields, so no rigid lens kick is applied in this mode.
 
-* Re-centring stations (Config.column_recentre_stations = K > 0, monitor mode; report_electron_recentring.md): K stations at
+* Re-centring stations (Config.column_recentre_stations = K > 0, monitor mode): K stations at
   L k/(K+1), k = 1..K, inside every column. The electrons that crossed a station during the step are moved rigidly by
   d = -eta (m + n - t), n the monitor noise, t the station offset plus, for column_recentre_target = "proton", the mean offset
   of the paired protons. m is the slice offset measured on the electrons that crossed the station in this step and the one before
@@ -38,23 +38,23 @@ Model, in the lab frame of the ring driver:
   ~16 macro-electrons per slice (1-2 mm of noise per station, heating the protons through the side kick). The paired protons get
   the side kick x' + i y' += s i sigma side d with the coefficient of ColumnDrift (s = column_recentre_side_kick).
 
-* m = 2 study options (report_electron_m2_and_tune_chaos.md; all inert at their defaults): dyn_birth_sigma (birth size: the local
+* m = 2 options (all inert at their defaults): dyn_birth_sigma (birth size: the local
   matched size, the gun's fixed size, or the measured size / covariance of the protons entering with the electrons), dyn_resets (fresh
   electrons several times per column), dyn_b_scale (field of the E x B drift only), dyn_gc_scheme ("ab2": second-order Adams-Bashforth in
   the drift velocity), dyn_aperture_kill (protons beyond aperture_m from the column axis are removed and counted, instead of ending the run
   at the grid edge), and at the stations column_recentre_m2 (a strain term q conj(b) in the fit, removed by a quadrupole-like shaping
   field with its own proton kick) and column_recentre_dipole (scale of the dipole correction).
 
-* m = 2 remedy options (report_m2_remedies.md; inert at their defaults): rem_station_pos (station positions as column fractions, which
+* m = 2 remedy options (inert at their defaults): rem_station_pos (station positions as column fractions, which
   also allows stations together with dyn_resets > 1), rem_delay_steps (each station applies the fit of the same electrons made at a
   pickup J step paths upstream) and rem_m2_noise (noise on the fitted strain q).
 
-* Realistic profiles (report_dynamic_profiles.md; inert at their defaults): dyn_profile maps the same birth draw to a painted
+* Realistic profiles (inert at their defaults): dyn_profile maps the same birth draw to a painted
   (1 - r^2/R^2)^(p + 1), flat-top (uniform disc) or hollow (uniform annulus) unit-rms profile by its radial CDF (the angle and the
   quantile u = 1 - exp(-|n|^2 / 2) of each standard-normal pair are kept), dyn_size_ratio and dyn_ellipticity apply a fixed linear map
   to the unit draw; the birth-size rules (dyn_birth_sigma) then scale it as for the Gaussian.
 
-* Recycled electrons (Config.recycle_stride = d > 0; report_recycled_electrons.md; inert at the default 0): the electrons leaving a
+* Recycled electrons (Config.recycle_stride = d > 0; inert at the default 0): the electrons leaving a
   column keep their exit offset from the column axis and are re-born, through a parametrised proton-free transport map (rotation,
   centroid phase, centroid and strain cleaning, scraping, current loss; see Config), in column k + d by the same (paired) index, i.e.
   with the same proton slice. Fresh electrons only at stream starts (Recycler.fresh); the slice statistics of the map use the stored
@@ -291,7 +291,7 @@ class DynamicColumns:
                 axis = self.lens.axis_at(z)
                 e.position_m[idle, :2] = 0. if axis is None else axis
 
-    # ---- m = 2 study helpers ------------------------------------------------------------------------
+    # ---- m = 2 helpers ------------------------------------------------------------------------
     def sub_index(self, z: np.ndarray) -> np.ndarray:
         """Global index of the (sub-)column containing lab position z (columns start at the cell origins)."""
         zz = np.asarray(z) % self.cfg.circumference_m
