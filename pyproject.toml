@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lwi-ring"
-version = "0.2.0"
+version = "0.2.1"
 description = "Compensated storage ring driver: native strong-strong PIC on the LW Integrator's PIC core, every feature behind a Config option"
 readme = "README.md"
 authors = [{name = "Ben Folsom"}]

@@ -11,4 +11,4 @@ Every feature is a ``Config`` option and all defaults reproduce the baseline rin
     studyrun      runner with m = 0 / m = 2 column diagnostics, early stop and profile-shape diagnostic
     presets       energy rescaling and field-scaled lattice presets
 """
-__version__ = "0.2.0"
+__version__ = "0.2.1"
