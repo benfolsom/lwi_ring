@@ -1,5 +1,10 @@
 # lwi_ring
 
+A native strong–strong particle-in-cell ring driver for space-charge-compensated proton rings, with co-moving magnetised electron
+columns (rigid, drifting-centroid or self-consistent), wall-electrode feedback, recycled electrons and energy ramps. It is built on
+the PIC core of the [LW Integrator (LWI)](https://github.com/benfolsom/LW_integrator) and is developed alongside a feasibility study
+of a compensated rapid-cycling synchrotron; results and reports are published separately as they mature. Licence: GPL-3.0.
+
 The compensated storage ring's ring driver as one versioned Python package. It replaces the diverging copies of `ring_driver/` under
 `results_local/*/driver`. It is the study's strong–strong native-PIC ring driver, built on the LW Integrator's PIC core (`core.pic`:
 backend selection, deposit, gather, integrated-cell Green function, Boris push, `Species`), used as a library and not modified.

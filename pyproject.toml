@@ -9,6 +9,7 @@ description = "Compensated storage ring driver (native strong-strong PIC on the 
 readme = "README.md"
 authors = [{name = "Ben Folsom"}]
 requires-python = ">=3.10"
+license = {text = "GPL-3.0"}
 # core.pic (backend selection, kernels, Species) comes from the LW Integrator (package lw-integrator, which installs `core`). It is not
 # on an index: install it from its checkout first (pip install -e ~/work/extracurr/LW_integrator) or put the checkout on PYTHONPATH.
 dependencies = ["numpy", "scipy", "numba"]
