@@ -153,3 +153,18 @@ def test_interleaved_streams():
         rc.step += 40
         rc.store(e, allv)
     assert rc.stat["recycled"] == 2 * n and rc.stat["fresh"] == 2 * n
+
+
+def test_exit_labelled_with_resets():
+    """with dyn_resets > 1 an electron is found gone only after entering the next sub-column; its exit must still be labelled with the
+    sub-column it left, so that re-injection d sub-columns on matches (the stream was silently all-fresh before the fix)."""
+    rc = recycler(resets=2)
+    n = 1000
+    e = SimpleNamespace(name="electron_0", position_m=np.column_stack([np.zeros((n, 2)), np.full(n, L / 2 + 0.3)]))
+    rc.create(e.name, n)
+    rc.step = 7
+    rc.store(e, np.ones(n, bool))
+    rc.step = 50
+    out = rc.reborn(e, SimpleNamespace(population=np.ones(n)), np.ones(n, bool), np.full(n, CELL + 0.2), np.zeros((n, 2)))
+    assert rc.stat["recycled"] == n and rc.stat["fresh"] == 0
+    assert np.allclose(out, 0.0)

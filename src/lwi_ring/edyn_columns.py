@@ -645,7 +645,9 @@ class Recycler:
         idx = np.flatnonzero(gone)
         if not len(idx):
             return
-        k = self.column(e.position_m[idx, 2])
+        # the unit just left: with dyn_resets > 1 an electron is found gone only after it entered the next sub-column, so take its
+        # position one step back (without resets the exit is seen in the gap after the column, which column() already maps back)
+        k = self.column(e.position_m[idx, 2] - (self.cfg.circumference_m / self.cfg.steps_per_turn if self.resets > 1 else 0.0))
         nxt = k + self.d
         keep = (nxt < self.ncol) & ~self.fresh(nxt)
         slot = k % self.d
