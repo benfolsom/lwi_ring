@@ -21,7 +21,7 @@ pip install -e "lwi_ring[test]"
 ```
 
 Python 3.10 or later; NumPy, SciPy and Numba are installed as dependencies. MLX (`pip install -e "lwi_ring[mlx]"`) is optional and
-only needed for the GPU backend.
+only needed for the Apple GPU backend. For an NVIDIA GPU (CuPy), see `README_GPU.md`.
 
 ## Quick start
 
@@ -58,9 +58,11 @@ Solver locks, the Numba cache, default run directories and the many-turn output 
 set, otherwise `./results_local/ring_pic` in the working directory. `driver.set_output_root(path)` changes it at run time.
 On a shared machine, `LWI_RING_CAP_FILE=/path/to/file` makes the run loops wait while the integer in that file is below `RING_REQUIRED_CAP` (default 2); unset, nothing waits.
 
-The GPU backend (`backend="mlx"` in the config, or `--backend mlx`) runs the kernels in float32 through `core.pic.mlx_backend`. MLX is
-taken from the installed package, or else from `$RING_MLX_SITE`. GPU results are not bit-comparable with CPU results, and the test
-suite does not run them (the `mlx` marker is reserved and never selected by default).
+Two GPU backends run the PIC kernels: `backend="mlx"` (Apple GPU, float32, through `core.pic.mlx_backend`; MLX is taken from the
+installed package, or else from `$RING_MLX_SITE`) and `backend="cupy"` (NVIDIA GPU through `core.pic.cupy_backend`, with
+`precision` `"float32"` or `"float64"`; setup and a validation script in `README_GPU.md` and `validate_gpu.py`). Only the kernels move
+to the GPU; the rest of a step runs on one CPU core. GPU results are not bit-comparable with CPU results, and the test suite does not
+run them (the `mlx` marker is reserved and never selected by default).
 
 ## Options by physics feature
 
@@ -102,6 +104,27 @@ Electrons leaving column k pass a proton-free transport and re-enter column k + 
 the start of a stream. Enabled by `recycle_stride > 0`. The transport acts through `recycle_gun_every`, `recycle_rotate_deg`,
 `recycle_centroid_phase_deg`, `recycle_centroid_eta`, `recycle_strain_eta`, `recycle_current_loss`, `recycle_scrape_sigma`,
 `recycle_window_m`, `recycle_noise_m` and `recycle_seed`.
+
+Stored streams (`recycle_stored`) carry the electrons from the end of a turn into the next turn instead of collecting them, as in a
+recirculator. Between turns their memory of the protons can be scaled (`recycle_keep_centroid`, `recycle_keep_shape`), partly replaced
+with fresh electrons (`recycle_replace`), corrected per slice in centroid and ellipse with measurement noise
+(`recycle_moment_eta_c`, `recycle_moment_eta_s`, `recycle_moment_sigma_c_m`, `recycle_moment_sigma_s`), shifted along the bunch
+(`recycle_shift_m`, `recycle_shift_rms_m`) or swapped to the other bunch (`recycle_bunch_swap`); `recycle_wrap_seed` seeds these
+choices. The longitudinal lock between an electron and its proton slice is ideal.
+
+### Column ends
+
+The gun and collector ends of each column (`cend_*`): electron-free gaps and tapers (`cend_gap_in_m`, `cend_gap_out_m`,
+`cend_reset_gap_m`, `cend_taper_m`, `cend_taper_offset_m`), the residual dipole kick of the end correction (`cend_kick_rms_rad`,
+`cend_seed`), the linear normal and skew quadrupoles of the ends (`cend_k1l`, `cend_k1sl`, `cend_skew_polarity`) and the arm
+geometry (`cend_arms`). `dyn_electron_bore_m` sets the transverse wall for the dynamic electrons.
+
+### Collimation
+
+Two-stage collimation (`collimation.py`; inert unless `coll_elements` or `coll_arc_aperture_m` is set): thin round elements at given
+ring positions, primaries with multiple scattering, energy loss and nuclear absorption at `coll_physics_energy_mev`, black
+secondaries, an arc aperture `coll_arc_aperture_m`, and per-element and per-metre loss records (`coll_loss_bin_m`, `coll_centre`,
+`coll_seed`).
 
 ### Ramps
 

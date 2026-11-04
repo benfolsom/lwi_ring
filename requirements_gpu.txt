@@ -1,0 +1,6 @@
+# Python 3.10-3.12 (tested stack on the Mac: 3.12). Install the CuPy wheel that matches the CUDA *toolkit/runtime* you have (see README_GPU.md);
+# install exactly one of cupy-cuda11x / cupy-cuda12x / cupy-cuda13x.
+numpy>=1.26,<2.5
+scipy>=1.11
+numba>=0.59
+cupy-cuda12x[ctk]>=13

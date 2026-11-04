@@ -50,7 +50,10 @@ MH = MP + 2 * constants.electron_mass - 14.3522 * E / C**2
 
 RECYCLE_DEFAULTS = dict(recycle_gun_every=0, recycle_rotate_deg=0.0, recycle_centroid_phase_deg=0.0, recycle_centroid_eta=0.0,
                         recycle_strain_eta=0.0, recycle_current_loss=0.0, recycle_scrape_sigma=0.0, recycle_window_m=4.0,
-                        recycle_noise_m=0.0, recycle_seed=0)
+                        recycle_noise_m=0.0, recycle_seed=0, recycle_stored=False, recycle_keep_centroid=1.0, recycle_keep_shape=1.0,
+                        recycle_shift_m=0.0, recycle_shift_rms_m=0.0, recycle_replace=0.0, recycle_wrap_seed=0,
+                        recycle_moment_eta_c=0.0, recycle_moment_eta_s=0.0, recycle_moment_sigma_c_m=0.0, recycle_moment_sigma_s=0.0,
+                        recycle_bunch_swap=False)
 
 
 @dataclass
@@ -80,6 +83,7 @@ class Config:
     opposing: str = "charged"
     collective: bool = True
     backend: str = "cpu"
+    precision: str | None = None              # cupy only: "float32" (consumer cards) or "float64" (default); must stay None for cpu/mlx
     wall_limit_s: float | None = None
     aperture_m: float | None = None           # many_turn absorbing aperture; None = --aperture-mm (30 mm)
     # Mitigation tools; every default reproduces the earlier behaviour exactly.
@@ -321,6 +325,9 @@ class Config:
     # dyn_aperture_kill: protons farther than aperture_m from the column axis (closed orbit) are removed (weight zero, parked on the axis)
     # with their electrons, and counted as lost, instead of ending the run when they leave the field grid.
     dyn_aperture_kill: bool = False
+    # Optional absorbing electron wall about the machine axis (as in wallfb.py), metres; 0 preserves the legacy model.
+    # For wall electrodes, set to wfb_bore_m. A wall hit suppresses re-birth until the next (sub-)column.
+    dyn_electron_bore_m: float = 0.0
     # column_recentre_m2 > 0 (stations, dynamic electrons): the station fit also takes a strain term q conj(b) (the electron ellipse
     # distortion since birth) and removes column_recentre_m2 * (q - q_t) by an electrostatic quadrupole-like shaping field; q_t = 0 for
     # column_recentre_m2_target = "birth", or the strain that makes the electron ellipse equal the protons' for "proton". The paired protons
@@ -385,8 +392,61 @@ class Config:
     recycle_window_m: float = 4.0
     recycle_noise_m: float = 0.0
     recycle_seed: int = 0
+    # Stored streams (inert at the defaults; see edyn_columns.Recycler): recycle_stored re-births the electrons that leave
+    # the last recycle_stride columns at the first columns of the next turn (same proton slice: ideal longitudinal lock, an assumption)
+    # instead of collecting them. At that turn-to-turn transfer (the time away from the protons) the standard transport map is applied
+    # first, then the memory model: recycle_keep_centroid / recycle_keep_shape in [0, 1] keep that fraction of the centroid / the
+    # covariance deviation from a fresh birth (1 = memory as the map leaves it, 0 = fresh-like); recycle_shift_m + recycle_shift_rms_m
+    # re-inject beside the proton slice that far (m, rms redrawn per group and turn) away; recycle_replace is the fraction of the
+    # electrons re-born fresh at each transfer (rng seeded by recycle_wrap_seed).
+    recycle_stored: bool = False
+    recycle_keep_centroid: float = 1.0
+    recycle_keep_shape: float = 1.0
+    recycle_shift_m: float = 0.0
+    recycle_shift_rms_m: float = 0.0
+    recycle_replace: float = 0.0
+    recycle_wrap_seed: int = 0
+    # Moment-only erasure at the same transfer (applied after the keep model, before the replacement): per group (slice) the
+    # measured centroid deviation from the fresh-birth centroid is reduced by recycle_moment_eta_c (measurement noise rms
+    # recycle_moment_sigma_c_m per plane added to the measurement), and the linear map S -> S - eta_s (S_meas - S_f) is applied to the
+    # offsets (S_meas = S plus noise of rms sigma_s S_xx, sigma_s S_yy and sigma_s sqrt(S_xx S_yy) on xx, yy, xy); every other feature of the offsets is
+    # kept. recycle_bunch_swap re-injects each slice beside the same slice of the other bunch (state of its stored wrap exit, one
+    # bunch spacing circumference/harmonic away) instead of the own bunch; it needs recycle_stored.
+    recycle_moment_eta_c: float = 0.0
+    recycle_moment_eta_s: float = 0.0
+    recycle_moment_sigma_c_m: float = 0.0
+    recycle_moment_sigma_s: float = 0.0
+    recycle_bunch_swap: bool = False
     # diag_bin_centroids adds the bin centroids (x, y per diag_bins bin, metres from the closed orbit) to the "coherent" record.
     diag_bin_centroids: bool = False
+    # ---- Column ends (dynamic electrons on the straights of a periodic lattice; all inert at
+    # the defaults). The solenoid still fills the whole straight; only the electrons and the end kicks change.
+    # cend_gap_in_m / cend_gap_out_m: electron-free length on the proton axis after each straight's entrance (gun end) and before its exit
+    # (collector end). cend_reset_gap_m: electron-free length at every internal reset junction (dyn_resets > 1), centred on the nominal
+    # sub-column boundary (None: cend_gap_in_m + cend_gap_out_m). Electrons exist only in the remaining electron regions.
+    # cend_taper_m: over this length at the start of every electron region (gun merge) and at its end (collector) the electrons follow the
+    # bend field line: their positions are displaced from the column axis by d = cend_taper_offset_m (1 - u/taper)^2, u the distance into
+    # the region (or to its end), along +y at gun ends and +y (cend_arms "U") or -y ("Z") at collector ends; electrons are born at the
+    # region start (at the full offset) and removed at its end, as before.
+    # cend_kick_rms_rad: residual dipole kick after correction at every electron-region boundary (x and y, Gaussian, seeded by cend_seed).
+    # cend_k1l / cend_k1sl: thin normal / skew quadrupole per end, [gun end, collector end] (integrated strength in 1/m, dx' = -k x,
+    # dy' = +k y; skew dx' = -k y, dy' = -k x); the skew part takes the cell's solenoid polarity sign when cend_skew_polarity.
+    cend_gap_in_m: float = 0.0
+    cend_gap_out_m: float = 0.0
+    cend_reset_gap_m: float | None = None
+    cend_taper_m: float = 0.0
+    cend_taper_offset_m: float = 0.0
+    cend_arms: str = "U"
+    cend_kick_rms_rad: float = 0.0
+    cend_seed: int = 0
+    cend_k1l: list | None = None
+    cend_k1sl: list | None = None
+    cend_skew_polarity: bool = True
+
+    def cend_active(self) -> bool:
+        return bool(self.cend_gap_in_m or self.cend_gap_out_m or self.cend_reset_gap_m or self.cend_taper_m
+                    or self.cend_kick_rms_rad or self.cend_k1l is not None or self.cend_k1sl is not None)
+
     # ---- Segmented wall-electrode feedback (dynamic electrons on the straights of a
     # periodic lattice; inert unless wfb_enable). See wallfb.py: nseg = round(L / wfb_segment_m) segments per column, wfb_sectors azimuthal
     # electrodes in a bore of wfb_bore_m, each segment driven from the net (proton + electron) l = 1, 2 wall signal of a pickup
@@ -421,6 +481,21 @@ class Config:
     wfb_proton_kick: bool = True
     wfb_electron_drive: bool = True
     wfb_seed: int = 0
+    # ---- Two-stage collimation (inert unless coll_elements or coll_arc_aperture_m is set). See collimation.py: thin round elements
+    # [{"name", "s_m", "kind": "primary" | "secondary", "radius_m", "material", "thickness_m"}] (primaries: multiple Coulomb
+    # scattering, energy loss and nuclear absorption of the material at coll_physics_energy_mev (None = energy_mev); secondaries:
+    # black absorbers), the ring wall aperture_m with coll_arc_aperture_m in the arcs (None = aperture_m), radii from the closed orbit
+    # (coll_centre "orbit") or the axis ("axis"), and per-element / per-metre loss records (coll_loss_bin_m). Works in driver.run (lost
+    # protons parked with weight zero; replaces dyn_aperture_kill) and in many_turn (removed; replaces the plain absorbing aperture).
+    coll_elements: list | None = None
+    coll_arc_aperture_m: float | None = None
+    coll_physics_energy_mev: float | None = None
+    coll_centre: str = "orbit"
+    coll_loss_bin_m: float = 1.0
+    coll_seed: int = 0
+
+    def coll_enabled(self) -> bool:
+        return self.coll_elements is not None or self.coll_arc_aperture_m is not None
 
     def ramp_enabled(self) -> bool:
         return self.ramp_final_energy_mev is not None
@@ -567,9 +642,22 @@ class Config:
                         and 0 <= self.recycle_centroid_eta <= 1 and 0 <= self.recycle_strain_eta <= 1
                         and 0 <= self.recycle_current_loss < 1 and self.recycle_scrape_sigma >= 0 and self.recycle_window_m > 0
                         and self.recycle_noise_m >= 0
+                        and 0 <= self.recycle_keep_centroid <= 1 and 0 <= self.recycle_keep_shape <= 1
+                        and 0 <= self.recycle_replace <= 1 and self.recycle_shift_rms_m >= 0
+                        and 0 <= self.recycle_moment_eta_c <= 1 and 0 <= self.recycle_moment_eta_s <= 1
+                        and math.isfinite(self.recycle_moment_sigma_c_m) and self.recycle_moment_sigma_c_m >= 0
+                        and math.isfinite(self.recycle_moment_sigma_s) and self.recycle_moment_sigma_s >= 0
+                        and math.isfinite(self.recycle_shift_m) and math.isfinite(self.recycle_shift_rms_m)
                         and all(math.isfinite(v) for v in (self.recycle_rotate_deg, self.recycle_centroid_phase_deg))):
                     raise ValueError("recycle_*: 0 < stride < lattice_periods x resets, gun_every >= 0, centroid/strain eta in [0, 1], "
-                                     "0 <= current_loss < 1, scrape_sigma >= 0, window > 0, noise >= 0, finite angles")
+                                     "0 <= current_loss < 1, scrape_sigma >= 0, window > 0, noise >= 0, finite angles, "
+                                     "keep_centroid/keep_shape/replace in [0, 1], shift_rms >= 0")
+                if self.recycle_bunch_swap and self.harmonic < 2:
+                    raise ValueError("recycle_bunch_swap needs at least two bunches (harmonic >= 2)")
+                if not self.recycle_stored and (self.recycle_bunch_swap or self.recycle_moment_eta_c or self.recycle_moment_eta_s):
+                    raise ValueError("recycle_moment_* and recycle_bunch_swap need recycle_stored")
+                if self.recycle_stored and (self.lattice_periods * self.electron_resets()) % self.recycle_stride:
+                    raise ValueError("recycle_stored needs lattice_periods x resets divisible by recycle_stride")
             elif any(getattr(self, k) != v for k, v in RECYCLE_DEFAULTS.items()):
                 raise ValueError("recycle_* options need recycle_stride > 0")
             if self.wfb_enable:
@@ -585,8 +673,33 @@ class Config:
             if self.column_drift_omega_overlap and not (self.column_centroid_drift and self.column_sigma_follow
                                                          and self.column_profile == "gaussian"):
                 raise ValueError("column_drift_omega_overlap needs column_centroid_drift, column_sigma_follow and gaussian columns")
+            if self.dyn_profile != "gaussian" or self.dyn_size_ratio != 1.0 or self.dyn_ellipticity or self.dyn_match_profile:
+                if self.column_electrons != "dynamic":
+                    raise ValueError("dyn_profile, dyn_size_ratio, dyn_ellipticity and dyn_match_profile need column_electrons = dynamic")
+                if self.dyn_profile not in ("gaussian", "painted", "flattop", "hollow") \
+                        or not (math.isfinite(self.dyn_painted_p) and self.dyn_painted_p > -0.99) \
+                        or not 0 <= self.dyn_hollow_ratio < 0.95 or not (math.isfinite(self.dyn_size_ratio) and self.dyn_size_ratio > 0) \
+                        or not 0 <= self.dyn_ellipticity < 1:
+                    raise ValueError("dyn_profile gaussian|painted|flattop|hollow, dyn_painted_p > -0.99, 0 <= dyn_hollow_ratio < 0.95, "
+                                     "dyn_size_ratio > 0, 0 <= dyn_ellipticity < 1")
+                if self.dyn_birth_sigma in ("paired", "paired_fixed") and (self.dyn_profile != "gaussian" or self.dyn_ellipticity):
+                    raise ValueError("paired electron births copy the protons' pattern: no dyn_profile or dyn_ellipticity")
+                if self.dyn_birth_sigma == "proton_cov" and self.dyn_ellipticity:
+                    raise ValueError("dyn_ellipticity cannot be combined with dyn_birth_sigma = proton_cov")
             if self.column_sigma_flux and not (self.column_sigma_follow and self.column_sections == "straights"):
                 raise ValueError("column_sigma_flux needs column_sigma_follow on the straights")
+            if self.cend_active():
+                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack():
+                    raise ValueError("cend_* options need dynamic electrons on the straights of a periodic lattice")
+                if min(self.cend_gap_in_m, self.cend_gap_out_m, self.cend_taper_m, self.cend_taper_offset_m, self.cend_kick_rms_rad) < 0 \
+                        or (self.cend_reset_gap_m is not None and self.cend_reset_gap_m < 0) or self.cend_arms not in ("U", "Z"):
+                    raise ValueError("cend_*: lengths, offset and kick >= 0, cend_arms U|Z")
+                for name in ("cend_k1l", "cend_k1sl"):
+                    if getattr(self, name) is not None and len(getattr(self, name)) != 2:
+                        raise ValueError(f"{name} needs [gun end, collector end]")
+                regions = electron_regions(self)
+                if np.any(regions[:, 1] - regions[:, 0] <= 2 * self.cend_taper_m):
+                    raise ValueError("cend_*: an electron region is shorter than its two tapers")
         elif self.column_follow_orbit or self.column_sigma_follow or self.column_electrons != "rigid" \
                 or self.column_local_fraction is not None or self.column_centroid_drift or self.column_sigma_flux or self.wfb_enable \
                 or self.column_drift_omega_overlap or self.recycle_stride:
@@ -635,16 +748,25 @@ class Config:
             raise ValueError("particle count must be a power of two, at least 32")
         if len(self.grid) != 3 or any(int(n) != n or n < 4 or n % 2 for n in self.grid):
             raise ValueError("grid needs three even integer dimensions >= 4")
-        if self.shape_order not in (1, 2) or self.backend not in ("cpu", "mlx"):
-            raise ValueError("supported deposition orders: 1/2; backends: cpu/mlx")
+        if self.shape_order not in (1, 2) or self.backend not in ("cpu", "mlx", "cupy"):
+            raise ValueError("supported deposition orders: 1/2; backends: cpu/mlx/cupy")
+        if self.precision not in (None, "float32", "float64") or (self.precision and self.backend != "cupy"):
+            raise ValueError("precision (float32/float64) applies to the cupy backend only")
         if self.opposing not in ("charged", "neutral", "absent"):
             raise ValueError("opposing must be charged, neutral, or absent")
         if self.steps_per_turn % self.tune_samples_per_turn:
             raise ValueError("steps_per_turn must divide into tune samples")
         if self.eta is not None and (not math.isfinite(self.eta) or self.eta <= 0):
             raise ValueError("eta must be positive; use opposing=absent for no beam")
+        if not math.isfinite(self.dyn_electron_bore_m) or self.dyn_electron_bore_m < 0:
+            raise ValueError("dyn_electron_bore_m must be finite and >= 0")
+        if self.dyn_electron_bore_m and not (self.columns_enabled() and self.column_electrons == "dynamic"):
+            raise ValueError("dyn_electron_bore_m needs dynamic electron columns")
         if self.aperture_m is not None and (not math.isfinite(self.aperture_m) or self.aperture_m <= 0):
             raise ValueError("aperture_m must be positive or null")
+        if self.coll_enabled():
+            from . import collimation
+            collimation.validate(self)
         if self.wall_limit_s is not None and self.wall_limit_s <= 0:
             raise ValueError("wall_limit_s must be positive")
         if self.hminus_refresh_turns is not None and (
@@ -780,7 +902,7 @@ def save(path: Path, value: object) -> None:
     temp.replace(path)
 
 
-def backend_for(selection: str) -> PICBackend:
+def backend_for(selection: str, precision: str | None = None) -> PICBackend:
     """Use the required interpreter; optionally expose an existing MLX package.
 
     Append, rather than prepend, the compatible external site-packages so the
@@ -794,14 +916,14 @@ def backend_for(selection: str) -> PICBackend:
             raise RuntimeError("MLX absent: set RING_MLX_SITE to an existing compatible installation")
         sys.path.append(str(site))
         os.environ["RING_MLX_SITE"] = str(site)
-    return select_backend(selection)
+    return select_backend(selection, precision) if precision else select_backend(selection)
 
 
 def core_hashes() -> dict[str, str]:
     root = Path(native_kernels.__file__).resolve().parents[2]
     return {name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in (
         "core/pic/kernels.py", "core/pic/backend.py", "core/pic/grid.py",
-        "core/pic/gpu_backend.py", "core/pic/gpu_source.py", "core/pic/mlx_backend.py")}
+        "core/pic/gpu_backend.py", "core/pic/gpu_source.py", "core/pic/mlx_backend.py", "core/pic/cupy_backend.py")}
 
 
 def set_output_root(path: str | Path) -> Path:
@@ -1482,7 +1604,7 @@ class RingFields:
     def __init__(self, cfg: Config):
         self.cfg = cfg
         self.p = physics(cfg)
-        self.backend = backend_for(cfg.backend)
+        self.backend = backend_for(cfg.backend, cfg.precision)
         self.half_xy_m = cfg.half_extent()
         self.shape = (cfg.grid[0]+4, cfg.grid[1]+4, cfg.grid[2])
         self.last_boundary = {}
@@ -1735,9 +1857,28 @@ def column_geometry(cfg: Config) -> tuple[np.ndarray, np.ndarray]:
     return np.array([a for a, _ in ordered], float), np.array([b - a for a, b in ordered], float)
 
 
+def electron_regions(cfg: Config) -> np.ndarray:
+    """(n, 3) array [start, end, cell index] in metres of the electron regions (column ends option; see Config.cend_*)."""
+    cell = cfg.circumference_m / cfg.lattice_periods
+    ls = cfg.straight_length_m if cfg.straight_length_m is not None else cell - cfg.arc_length_m
+    n = int(cfg.dyn_resets)
+    sub = ls / n
+    rg = cfg.cend_reset_gap_m if cfg.cend_reset_gap_m is not None else cfg.cend_gap_in_m + cfg.cend_gap_out_m
+    rows = []
+    for j in range(cfg.lattice_periods):
+        for k in range(n):
+            a = j * cell + k * sub + (cfg.cend_gap_in_m if k == 0 else rg / 2)
+            b = j * cell + (k + 1) * sub - (cfg.cend_gap_out_m if k == n - 1 else rg / 2)
+            rows.append((a, b, j))
+    return np.array(rows, float)
+
+
 def effective_lens_fraction(cfg: Config) -> float:
     """Ring-averaged compensation fraction f (lens_fraction, or the column's local fraction times its ring share)."""
     if cfg.columns_enabled() and cfg.column_local_fraction is not None:
+        if cfg.cend_active():                 # column ends: the electrons fill only the electron regions (each taper counts half)
+            r = electron_regions(cfg)
+            return cfg.column_local_fraction * float((r[:, 1] - r[:, 0] - cfg.cend_taper_m).sum()) / cfg.circumference_m
         return cfg.column_local_fraction * float(column_geometry(cfg)[1].sum()) / cfg.circumference_m
     return cfg.lens_fraction
 
@@ -1774,8 +1915,11 @@ class ElectronLens:
         self.sigma_scale = 1.0             # ramp: column size relative to the injection size
         self.fraction_norm = 1.0           # scale = -f * fraction_norm
         self.drift = None                  # ColumnDrift (column_centroid_drift)
+        self.eregions = None               # column ends: electron regions (Config.cend_*)
         if cfg.columns_enabled():
             self.start, self.lengths = column_geometry(cfg)
+            if cfg.cend_active():
+                self.eregions = electron_regions(cfg)
             total = float(self.lengths.sum())
             self.scale = -cfg.column_local_fraction if cfg.column_local_fraction is not None \
                 else -cfg.lens_fraction * cfg.circumference_m / total
@@ -1855,6 +1999,32 @@ class ElectronLens:
             mask |= (zz >= start) & (zz < start + extent)
         return mask
 
+    def inside_e(self, z: np.ndarray) -> np.ndarray:
+        """True where lab position z lies in an electron region (column ends option), else as inside()."""
+        if self.eregions is None:
+            return self.inside(z)
+        zz = np.asarray(z) % self.cfg.circumference_m
+        mask = np.zeros(zz.shape, bool)
+        for a, b, _ in self.eregions:
+            mask |= (zz >= a) & (zz < b)
+        return mask
+
+    def guide_offset(self, z: np.ndarray) -> np.ndarray:
+        """(n, 2) field-line displacement of the electrons in the merge tapers (column ends option; zero elsewhere)."""
+        zz = np.asarray(z) % self.cfg.circumference_m
+        out = np.zeros((len(zz), 2))
+        t, d0 = self.cfg.cend_taper_m, self.cfg.cend_taper_offset_m
+        if self.eregions is None or not t or not d0:
+            return out
+        side = 1.0 if self.cfg.cend_arms == "U" else -1.0
+        for a, b, _ in self.eregions:
+            u_in, u_out = zz - a, b - zz
+            m_in = (u_in >= 0) & (u_in < t)
+            m_out = (u_out > 0) & (u_out < t)
+            out[m_in, 1] += d0 * (1 - u_in[m_in] / t)**2
+            out[m_out, 1] += side * d0 * (1 - u_out[m_out] / t)**2
+        return out
+
     def axis_at(self, z: np.ndarray) -> np.ndarray | None:
         """Column axis (n, 2): the closed orbit if followed, else None (the machine axis)."""
         return None if self.orbit is None else self.orbit.xy(z)
@@ -1924,6 +2094,57 @@ class ElectronLens:
             if self.drift is not None and self.drift.K:
                 dp = dp + self.drift.side_kick(s.position_m[:, 2])
             result.append(dp)
+        return result
+
+
+class ColumnEnds:
+    """Residual thin kicks at the electron-region boundaries (column ends option, Config.cend_*): a seeded dipole (x, y) per end and
+    optional normal / skew quadrupoles [gun end, collector end]. Applied like LatticeErrors (crossing in the step path, position
+    correction to the true crossing point), protons only."""
+
+    def __init__(self, cfg: Config, p: dict):
+        self.cfg = cfg
+        r = electron_regions(cfg)
+        loc = np.concatenate([r[:, 0], r[:, 1]])
+        kind = np.concatenate([np.zeros(len(r), int), np.ones(len(r), int)])           # 0 gun end, 1 collector end
+        cellj = np.concatenate([r[:, 2], r[:, 2]]).astype(int)
+        order = np.argsort(loc)
+        self.location, self.kind, self.cellj = loc[order] % cfg.circumference_m, kind[order], cellj[order]
+        rng = np.random.default_rng(cfg.cend_seed + 7717)
+        self.theta = rng.standard_normal((len(self.location), 2)) * cfg.cend_kick_rms_rad
+        pol = np.array([1. if (cfg.solenoid_polarity == "same" or j % 2 == 0) else -1. for j in self.cellj])
+        k1 = np.asarray(cfg.cend_k1l if cfg.cend_k1l is not None else [0., 0.], float)
+        ks = np.asarray(cfg.cend_k1sl if cfg.cend_k1sl is not None else [0., 0.], float)
+        self.k1 = k1[self.kind]
+        self.ks = ks[self.kind] * (pol if cfg.cend_skew_polarity else 1.0)
+
+    def describe(self) -> dict:
+        return dict(count=len(self.location), kick_rms_rad=self.cfg.cend_kick_rms_rad, seed=self.cfg.cend_seed,
+                    k1l=self.cfg.cend_k1l, k1sl=self.cfg.cend_k1sl, location_m=self.location.tolist(), dipole_rad=self.theta.tolist())
+
+    def kicks(self, beams: list[Species], meta: list[dict], dt: float) -> list:
+        result = []
+        length = self.cfg.circumference_m
+        for s, info in zip(beams, meta):
+            if info["role"] != "proton":
+                result.append(None)
+                continue
+            z, u = s.position_m[:, 2], s.momentum_mc
+            v = s.velocity_m_s[:, 2]
+            lo, hi = z - v * dt / 2, z + v * dt / 2
+            hw = hi % length
+            j = np.searchsorted(self.location, hw, side="right") - 1
+            rel = np.where(j >= 0, self.location[j % len(self.location)], self.location[-1] - length)
+            where = hi - (hw - rel)
+            crossed = where > lo
+            k = j % len(self.location)
+            slope = u[:, :2] / u[:, 2:3]
+            at = s.position_m[:, :2] + slope * (where - z)[:, None]
+            angle = self.theta[k].copy()
+            angle[:, 0] += -self.k1[k] * at[:, 0] - self.ks[k] * at[:, 1]
+            angle[:, 1] += self.k1[k] * at[:, 1] - self.ks[k] * at[:, 0]
+            angle = np.where(crossed[:, None], angle, 0.)
+            result.append((angle * u[:, 2:3], angle * (z - where)[:, None]))
         return result
 
 
@@ -2275,9 +2496,10 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
         from .wallfb import WallFeedback
         wfb = WallFeedback(cfg, p, ElectronLens(cfg, p), directory)
     solver = RingFields(cfg) if cfg.collective else None
-    backend = solver.backend if solver else backend_for(cfg.backend)
+    backend = solver.backend if solver else backend_for(cfg.backend, cfg.precision)
     lens = ElectronLens(cfg, p) if cfg.lens_enabled() and cfg.column_electrons == "rigid" else None
     errors = LatticeErrors(cfg, p) if cfg.errors_enabled() else None
+    cends = ColumnEnds(cfg, p) if cfg.cend_active() and (cfg.cend_kick_rms_rad or cfg.cend_k1l is not None or cfg.cend_k1sl is not None) else None
     track = Racetrack(cfg, p) if cfg.racetrack() else None
     orbit_ref, damper = None, None
     if cfg.damper_kappa is not None or cfg.diag_bins:
@@ -2286,6 +2508,15 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
     if cfg.damper_kappa is not None:
         from .damper import Damper
         damper = Damper(cfg, orbit_ref)
+    coll, partners = None, {}
+    if cfg.coll_enabled():
+        from .collimation import Collimation
+        from .lattice_linear import LinearLattice
+        coll = Collimation(cfg, p, orbit_ref if orbit_ref is not None or cfg.coll_centre != "orbit"
+                           else LinearLattice(cfg, p, track, errors).closed_orbit())
+        for e in beams:
+            if hasattr(e, "proton_name"):
+                partners.setdefault(e.proton_name, []).append(e)
     landau = [landau_terms(cfg, p, info) for info in meta]
     lon = Longitudinal(cfg, p) if cfg.long_enabled() else None
     ramp = None
@@ -2314,8 +2545,11 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
     save(directory / "provenance.json", dict(config=asdict(cfg), physics=p,
         python=sys.executable, command=sys.argv, radiation_reaction="off: diagnostic control",
         **(dict(lattice_errors=errors.describe()) if errors else {}),
+        **(dict(column_ends=cends.describe()) if cends else {}),
+        **(dict(column_end_regions=electron_regions(cfg).tolist()) if cfg.cend_active() else {}),
         **(dict(racetrack=p.get("racetrack_match") or track.describe()) if track else {}),
         **(dict(longitudinal=lon.describe()) if lon else {}),
+        **(dict(collimation=coll.describe()) if coll else {}),
         **(dict(ramp=dict(final_energy_mev=cfg.ramp_final_energy_mev, time_s=cfg.ramp_time_s, shape=cfg.ramp_shape,
                           initial_compensation=ramp.f0, initial_tunes_zero_current=ramp.linear_tunes())) if ramp else {}),
         script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), lwi_ring_version=_version(),
@@ -2404,7 +2638,10 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
         else:
             t_mid, t_end = (step-0.5)*dt, step*dt
         for s, info in zip(beams, meta):
+            before = s.position_m.copy() if coll and info["role"] != "electron" else None
             drift_beam(s, info["role"], 0.5 * dt, lon, track)
+            if before is not None:
+                coll.process(s, before, step, "midpoint", partners.get(s.name, []))
             s.position_m[:,2] %= cfg.circumference_m
         if lon:
             lon.half_ref(dt)
@@ -2446,6 +2683,9 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
         error_du = errors.kicks(beams, meta, dt) if errors else [None]*len(beams)
         if dyn:
             error_du = [None if info["role"] == "electron" else du for info, du in zip(meta, error_du)]
+        if cends is not None:
+            end_du = cends.kicks(beams, meta, dt)
+            error_du = [e if c is None else (c if e is None else (e[0] + c[0], e[1] + c[1])) for e, c in zip(error_du, end_du)]
         for u, du in zip(updated, error_du):
             if du is not None:
                 u[:,:2] += du[0]
@@ -2485,7 +2725,10 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
                 s.position_m[:,:2] += damp_du[i][1]
             if sols[i] is not None:
                 s.position_m[:,:2] += sols[i][2]
+            before = s.position_m.copy() if coll and meta[i]["role"] != "electron" else None
             drift_beam(s, meta[i]["role"], 0.5 * dt, lon, track)
+            if before is not None:
+                coll.process(s, before, step, "end", partners.get(s.name, []))
             s.position_m[:,2] %= cfg.circumference_m
             if not (np.isfinite(s.position_m).all() and np.isfinite(u).all()):
                 raise ValueError("nonfinite state")
@@ -2529,6 +2772,8 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
         if step % cfg.steps_per_turn == 0:
             if wfb:
                 wfb.end_turn(step // cfg.steps_per_turn)
+            if coll:
+                coll.end_turn(step // cfg.steps_per_turn, directory)
             record(step)
             if turn_hook:
                 turn_hook(step, beams, lon)
@@ -2566,7 +2811,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--set", action="append", default=[], metavar="KEY=JSON", help="override a Config field (JSON value)")
-    parser.add_argument("--backend", choices=("cpu", "mlx"))
+    parser.add_argument("--backend", choices=("cpu", "mlx", "cupy"))
     parser.add_argument("--opposing", choices=("charged", "neutral", "absent"))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--refine", choices=("dt", "longitudinal", "transverse", "particles"),

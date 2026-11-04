@@ -114,9 +114,13 @@ class DynamicColumns:
         self.cell = cfg.circumference_m / cfg.lattice_periods if cfg.lattice_periods else cfg.circumference_m
         self.sub = float(lens.lengths[0]) / self.resets
         self.subid: dict[str, np.ndarray] = {}
+        self.taper = bool(getattr(cfg, "cend_taper_m", 0.0) and getattr(cfg, "cend_taper_offset_m", 0.0))
+        self.guide: dict[str, np.ndarray] = {}         # column ends: current field-line displacement of each electron
         self.vprev: dict[str, np.ndarray] = {}
         self.lost = 0.0                                  # proton weight removed by dyn_aperture_kill
         self.total = None
+        self.wall_blocked: dict[str, np.ndarray] = {}
+        self.wall_lost = 0.0
         self.bscale = float(cfg.rem_birth_ratio)          # gun-size factor (rem_birth_ratio, rem_birth_track)
         self.track_on = bool(cfg.rem_birth_track) or cfg.rem_birth_ratio != 1.0
         self.ncall = 0
@@ -214,8 +218,12 @@ class DynamicColumns:
             e.proton_name = s.name
             e.population = np.zeros(n)
             e.alive = np.zeros(n, bool)
+            if self.cfg.dyn_electron_bore_m:
+                self.wall_blocked[e.name] = np.full(n, -1, dtype=int)
             if self.resets > 1:
                 self.subid[e.name] = np.full(n, -1)
+            if self.taper:
+                self.guide[e.name] = np.zeros((n, 2))
             if self.K:
                 self.birth[e.name] = np.zeros((n, 2))
                 self.birth_abs[e.name] = np.zeros((n, 2))
@@ -247,17 +255,25 @@ class DynamicColumns:
             if not hasattr(e, "proton_name"):
                 continue
             proton = by_name[e.proton_name]
-            if self.cfg.dyn_aperture_kill:
+            if self.cfg.dyn_electron_bore_m:
+                self.absorb_wall(e)              # before storing exits for recycling
+            if self.cfg.dyn_aperture_kill and not self.cfg.coll_enabled():   # with collimation the wall is collimation.py's
                 self.kill(proton, e)
-            inside_electron = self.lens.inside(e.position_m[:, 2])
+            inside_electron = self.lens.inside_e(e.position_m[:, 2])
             gone = e.alive & ~inside_electron
             if self.resets > 1:
                 gone |= e.alive & (self.sub_index(e.position_m[:, 2]) != self.subid[e.name])
             if self.rc:
-                self.rc.store(e, gone)
+                # column ends + recycling: store the exit offset without the taper's field-line displacement,
+                # which the rebirth adds again at the next region's start
+                self.rc.store(e, gone, self.guide[e.name] if self.taper else None)
             e.alive &= ~gone
-            born = ~e.alive & self.lens.inside(proton.position_m[:, 2]) & (proton.population > 0)
+            born = ~e.alive & self.lens.inside_e(proton.position_m[:, 2]) & (proton.population > 0)
+            if self.cfg.dyn_electron_bore_m:
+                born &= self.wall_blocked[e.name] != self.sub_index(proton.position_m[:, 2])
             if born.any():
+                if self.cfg.dyn_electron_bore_m:
+                    self.wall_blocked[e.name][born] = -1
                 z = proton.position_m[born, 2]
                 axis = self.lens.axis_at(z)
                 if self.cfg.dyn_birth_sigma == "follow":
@@ -279,17 +295,39 @@ class DynamicColumns:
                 if self.K:
                     self.birth[e.name][born] = xy
                     self.birth_abs[e.name][born] = e.position_m[born, :2]
+            if self.taper:
+                # column ends: electrons in the merge tapers follow the bend field line (Config.cend_taper_*); birth records exclude it
+                gz = self.lens.guide_offset(e.position_m[:, 2])
+                old = self.guide[e.name]
+                upd = e.alive & ~born
+                e.position_m[upd, :2] += gz[upd] - old[upd]
+                e.position_m[born, :2] += gz[born]
+                old[:] = np.where(e.alive[:, None], gz, 0.)
             if self.K:
                 self.recentre(e, proton, born)
             weight = np.where(e.alive, self.local * proton.population, 0.0)
             if self.rc:
                 weight = weight * self.rc.fac[e.name]
             e.population = weight
+            if self.cfg.dyn_electron_bore_m:
+                self.absorb_wall(e)              # births and station shifts can cross the wall too
             idle = ~e.alive
             if idle.any():
                 z = e.position_m[idle, 2]
                 axis = self.lens.axis_at(z)
                 e.position_m[idle, :2] = 0. if axis is None else axis
+
+    def absorb_wall(self, e: Species) -> None:
+        """Absorb electrons at the circular machine-axis wall; never clip a live charge into the bore."""
+        out = e.alive & (np.hypot(e.position_m[:, 0], e.position_m[:, 1]) >= self.cfg.dyn_electron_bore_m)
+        if out.any():
+            self.wall_lost += float(e.population[out].sum())
+            self.wall_blocked[e.name][out] = self.sub_index(e.position_m[out, 2])
+            e.alive[out] = False
+            e.population[out] = 0.0
+            # The solver gathers all rows, including zero-weight rows: keep these harmless immediately.
+            e.position_m[out, :2] = 0.0
+            e.momentum_mc[out, :2] = 0.0
 
     # ---- m = 2 helpers ------------------------------------------------------------------------
     def sub_index(self, z: np.ndarray) -> np.ndarray:
@@ -560,6 +598,8 @@ class DynamicColumns:
         e.position_m[:, :2] += np.where(live[:, None], drift * dt, 0.)
         u = e.momentum_mc.copy()
         u[:, 2] += np.where(e.alive, e.charge_c * force_over_q[:, 2] * dt / (e.mass_kg * C), 0.)
+        if self.cfg.dyn_electron_bore_m:
+            self.absorb_wall(e)                  # before end-step boundary checks and the next gather
         return u
 
     # ---- diagnostics -----------------------------------------------------------------------------
@@ -587,6 +627,8 @@ class DynamicColumns:
             rows["birth_scale"] = dict(scale=float(self.bscale), updates=len(self.track_log))
         if self.rc:
             rows["recycle"] = self.rc.describe()
+        if self.cfg.dyn_electron_bore_m:
+            rows["electron_wall"] = dict(bore_m=self.cfg.dyn_electron_bore_m, lost_population=self.wall_lost)
         if self.cfg.dyn_aperture_kill:
             rows["aperture_kill"] = dict(lost_population=self.lost, lost_fraction=self.lost / max(sum((self.total or {}).values()), 1e-300))
         return rows
@@ -608,14 +650,22 @@ class Recycler:
         self.cph = np.exp(1j * np.radians(cfg.recycle_centroid_phase_deg))
         self.rng = np.random.default_rng(cfg.seed * 1000003 + 15485863 + cfg.recycle_seed) if cfg.recycle_noise_m > 0 else None
         self.step = 0
+        self.stored = bool(getattr(cfg, "recycle_stored", False))
+        self.rng_w = np.random.default_rng(cfg.seed * 1000003 + 32452843 + cfg.recycle_wrap_seed) \
+            if self.stored and (cfg.recycle_shift_m or cfg.recycle_shift_rms_m or cfg.recycle_replace or getattr(cfg, "recycle_bunch_swap", False)) else None
+        self.moments = self.stored and bool(getattr(cfg, "recycle_moment_eta_c", 0.0) or getattr(cfg, "recycle_moment_eta_s", 0.0))
+        self.rng_m = np.random.default_rng(cfg.seed * 1000003 + 49979687 + cfg.recycle_wrap_seed) if self.moments else None
+        self.swap = self.stored and bool(getattr(cfg, "recycle_bunch_swap", False))
+        self.swap_steps = int(round(cfg.circumference_m / getattr(cfg, "harmonic", 2) / (cfg.circumference_m / cfg.steps_per_turn)))
+        self.wbuf, self.pref = {}, {}                  # swap only: latest wrap exit per bunch (survives the later stores), proton objects
         self.off, self.src, self.when, self.sgen, self.gen, self.fac = {}, {}, {}, {}, {}, {}
         self.stat = dict(fresh=0, recycled=0, scraped_weight=0.0, recycled_weight=0.0, m_in2=0.0, m_out2=0.0, q_in2=0.0, q_out2=0.0,
-                         groups=0)
+                         groups=0, wrap_births=0, wrap_replaced=0)
 
     def fresh(self, c: np.ndarray) -> np.ndarray:
         """Stream starts (gun): the first d columns of the turn, and every recycle_gun_every-th column of a stream."""
         c = np.asarray(c)
-        out = c < self.d
+        out = np.zeros(c.shape, bool) if self.stored else c < self.d
         if self.cfg.recycle_gun_every:
             out |= (c // self.d) % self.cfg.recycle_gun_every == 0
         return out
@@ -630,6 +680,9 @@ class Recycler:
         self.sgen[name] = np.zeros((d, n), int)
         self.gen[name] = np.zeros(n, int)
         self.fac[name] = np.ones(n)
+        if self.swap:
+            self.wbuf[name] = dict(ok=np.zeros((d, n), bool), off=np.zeros((d, n), complex), when=np.zeros((d, n), int),
+                                   sgen=np.zeros((d, n), int))
 
     def column(self, z: np.ndarray) -> np.ndarray:
         """(Sub-)column index of lab position z (inside a column, or in the gap after it)."""
@@ -640,7 +693,7 @@ class Recycler:
     def end(self, k: np.ndarray) -> np.ndarray:
         return (k // self.resets) * self.cell + (k % self.resets + 1) * self.length * (1 - 1e-12)
 
-    def store(self, e, gone: np.ndarray) -> None:
+    def store(self, e, gone: np.ndarray, guide: np.ndarray | None = None) -> None:
         """Electrons leaving unit k: keep their offset at the unit end, in slot k mod d, if unit k + d is served by the same stream."""
         idx = np.flatnonzero(gone)
         if not len(idx):
@@ -649,7 +702,11 @@ class Recycler:
         # position one step back (without resets the exit is seen in the gap after the column, which column() already maps back)
         k = self.column(e.position_m[idx, 2] - (self.cfg.circumference_m / self.cfg.steps_per_turn if self.resets > 1 else 0.0))
         nxt = k + self.d
-        keep = (nxt < self.ncol) & ~self.fresh(nxt)
+        if self.stored:
+            nxt = nxt % self.ncol                       # the last d units feed the first d units of the next turn
+            keep = ~self.fresh(nxt)
+        else:
+            keep = (nxt < self.ncol) & ~self.fresh(nxt)
         slot = k % self.d
         self.src[e.name][slot, idx] = np.where(keep, k, -1)
         if not keep.any():
@@ -657,9 +714,18 @@ class Recycler:
         idx, k, slot = idx[keep], k[keep], slot[keep]
         axis = self.lens.axis_at(self.end(k))
         xy = e.position_m[idx, :2] - (0. if axis is None else axis)
+        if guide is not None:
+            xy = xy - guide[idx]
         self.off[e.name][slot, idx] = xy[:, 0] + 1j * xy[:, 1]
         self.when[e.name][slot, idx] = self.step
         self.sgen[e.name][slot, idx] = self.gen[e.name][idx]
+        if self.swap:                                   # exits of the last d units: keep apart for the other bunch to pick up
+            w = (k + self.d) >= self.ncol
+            wb = self.wbuf[e.name]
+            wb["ok"][slot[w], idx[w]] = True
+            wb["off"][slot[w], idx[w]] = self.off[e.name][slot[w], idx[w]]
+            wb["when"][slot[w], idx[w]] = self.step
+            wb["sgen"][slot[w], idx[w]] = self.gen[e.name][idx[w]]
 
     def reborn(self, e, proton, born: np.ndarray, z: np.ndarray, xy: np.ndarray) -> np.ndarray:
         """Birth offsets for the electrons `born` (entering at z, fresh offsets xy): recycled ones get the transport map of their stored
@@ -668,7 +734,8 @@ class Recycler:
         bidx = np.flatnonzero(born)
         c = self.column(z)
         slot = c % self.d
-        rec = (c >= self.d) & ~self.fresh(c) & (self.src[name][slot, bidx] == c - self.d)
+        prev = (c - self.d) % self.ncol if self.stored else c - self.d
+        rec = ((c >= self.d) | self.stored) & ~self.fresh(c) & (self.src[name][slot, bidx] == prev)
         fresh_i = bidx[~rec]
         self.gen[name][fresh_i] = 0
         self.fac[name][fresh_i] = 1.0
@@ -677,16 +744,38 @@ class Recycler:
             return xy
         xy = xy.copy()
         w_all = proton.population
+        self.pref[name] = proton
         for col in np.unique(c[rec]):
             sl = col % self.d
+            pcol = (col - self.d) % self.ncol if self.stored else col - self.d
+            wrap = self.stored and col < self.d
             src, off, when = self.src[name][sl], self.off[name][sl], self.when[name][sl]
             sel = np.flatnonzero(rec & (c == col))
             ii = bidx[sel]
-            t0 = int(np.median(when[ii]))
-            pool = np.flatnonzero((src == col - self.d) & (np.abs(when - t0) <= self.win) & (w_all > 0))
-            loss = (1 - self.cfg.recycle_current_loss) ** (self.sgen[name][sl, pool] + 1)
-            w = w_all[pool] * loss
+            t0 = t0_own = int(np.median(when[ii]))
+            if wrap and (self.cfg.recycle_shift_m or self.cfg.recycle_shift_rms_m):
+                dz = self.cfg.circumference_m / self.cfg.steps_per_turn
+                t0 += int(round((self.cfg.recycle_shift_m + (self.rng_w.normal(0, self.cfg.recycle_shift_rms_m)
+                                                            if self.cfg.recycle_shift_rms_m else 0.0)) / dz))
+            if wrap and self.swap:
+                # the same slice of the other bunch: its latest wrap exit, one bunch spacing earlier in step count (it has already
+                # been re-born and has moved on, hence the separate buffer); none yet (first turn) -> fresh births. The buffer keeps
+                # only the latest wrap exit of each donor electron: if one electron exits both of the last d units within the match
+                # window, the earlier record is lost and that donor is skipped (fewer donors, or fresh births if none is left).
+                names = list(self.off)
+                oth = names[(names.index(name) + 1) % len(names)]
+                wb = self.wbuf[oth]
+                wpop = self.pref[oth].population if oth in self.pref else np.ones(len(wb["ok"][sl]))
+                pool = np.flatnonzero(wb["ok"][sl] & (np.abs(wb["when"][sl] - (t0 - self.swap_steps)) <= self.win) & (wpop > 0))
+                off, sgen_p, w_p = wb["off"][sl], wb["sgen"][sl], wpop
+            else:
+                pool = np.flatnonzero((src == pcol) & (np.abs(when - t0) <= self.win) & (w_all > 0))
+                sgen_p, w_p = self.sgen[name][sl], w_all
+            loss = (1 - self.cfg.recycle_current_loss) ** (sgen_p[pool] + 1)
+            w = w_p[pool] * loss
             if w.sum() <= 0:                            # nothing measurable: these electrons are re-born fresh
+                if wrap and self.swap:
+                    self.stat["fresh"] += len(ii)       # swap start-up / no donor: counted as fresh births
                 self.gen[name][ii] = 0
                 self.fac[name][ii] = 1.0
                 continue
@@ -695,7 +784,9 @@ class Recycler:
             r = o - m
             sxx = np.sum(w * r.real**2) / w.sum(); syy = np.sum(w * r.imag**2) / w.sum(); sxy = np.sum(w * r.real * r.imag) / w.sum()
             S = np.array([[sxx, sxy], [sxy, syy]])
-            ro = off[ii] - m
+            # reinjection beside another proton slice: each electron takes the stored state of a random member of the shifted pool
+            own = ii if (t0 == t0_own and not (wrap and self.swap)) else pool[self.rng_w.integers(len(pool), size=len(ii))]
+            ro = off[own] - m
             if self.cfg.recycle_strain_eta:
                 St = (1 - self.cfg.recycle_strain_eta) * S + self.cfg.recycle_strain_eta * 0.5 * np.trace(S) * np.eye(2)
                 M = _sqrtm(St) @ np.linalg.inv(_sqrtm(S))
@@ -712,7 +803,7 @@ class Recycler:
                     noise = complex(self.rng.normal(0, self.cfg.recycle_noise_m), self.rng.normal(0, self.cfg.recycle_noise_m))
                 mm = mm - self.cfg.recycle_centroid_eta * (mm + noise)
             new = mm + ro
-            g = self.sgen[name][sl, ii] + 1
+            g = sgen_p[own] + 1
             self.gen[name][ii] = g
             fac = (1 - self.cfg.recycle_current_loss) ** g
             if self.cfg.recycle_scrape_sigma:
@@ -720,13 +811,92 @@ class Recycler:
                 cut = np.abs(ro) > lim
                 self.stat["scraped_weight"] += float(np.sum(w_all[ii][cut] * fac[cut]))
                 fac = np.where(cut, 0.0, fac)
+            if wrap:                                    # memory model after the standard map and the scraping test
+                mm, ro = self._memory(mm, ro, xy[sel, 0] + 1j * xy[sel, 1])
+                if self.moments:
+                    mm, ro = self._moments(mm, ro, xy[sel, 0] + 1j * xy[sel, 1])
+                new = mm + ro
+                S2 = _cov(ro)
+                q_out = S2[0, 0] - S2[1, 1] + 2j * S2[0, 1]
+                tr_out = max(np.trace(S2), 1e-300)
+            if wrap:
+                self.stat["wrap_births"] += len(ii)
+                if self.cfg.recycle_replace:
+                    rep = self.rng_w.random(len(ii)) < self.cfg.recycle_replace      # replaced electrons stay fresh births
+                    new = np.where(rep, xy[sel, 0] + 1j * xy[sel, 1], new)
+                    fac = np.where(rep, 1.0, fac)
+                    self.gen[name][ii[rep]] = 0
+                    self.stat["wrap_replaced"] += int(rep.sum())
             self.fac[name][ii] = fac
             xy[sel, 0], xy[sel, 1] = new.real, new.imag
             tr = max(np.trace(S), 1e-300)
+            if not wrap:
+                tr_out = tr
             self.stat["recycled"] += len(ii); self.stat["recycled_weight"] += float(np.sum(w_all[ii] * fac)); self.stat["groups"] += 1
             self.stat["m_in2"] += abs(m) ** 2; self.stat["m_out2"] += abs(mm) ** 2
-            self.stat["q_in2"] += abs((S[0, 0] - S[1, 1] + 2j * S[0, 1]) / tr) ** 2; self.stat["q_out2"] += abs(q_out / tr) ** 2
+            self.stat["q_in2"] += abs((S[0, 0] - S[1, 1] + 2j * S[0, 1]) / tr) ** 2; self.stat["q_out2"] += abs(q_out / tr_out) ** 2
         return xy
+
+    def _memory(self, mm: complex, ro: np.ndarray, xf: np.ndarray) -> tuple:
+        """Memory erasure at the turn-to-turn transfer. mm, ro: centroid and residual offsets left by the standard transport map; xf:
+        the fresh birth offsets of the same electrons. Centroid: mf + keep_centroid (mm - mf), mf the mean fresh offset (0 = fresh
+        centroid). Shape: keep_shape = 1 leaves ro, 0 replaces it by the fresh residuals, in between the linear map taking the residual
+        covariance S to S_f + keep_shape (S - S_f) (second-moment memory only; the non-Gaussian structure of ro is kept for any
+        keep_shape > 0; groups of <= 2 electrons or with a singular S use sqrt(k) r + sqrt(1 - k) r_f instead). The group centroid
+        (mm plus the mean of ro) is set first, so keep_centroid = 0 gives exactly the fresh centroid whatever the pool centroid was."""
+        kc, ks = self.cfg.recycle_keep_centroid, self.cfg.recycle_keep_shape
+        mf = xf.mean()
+        rf = xf - mf
+        rm = ro.mean()
+        c = mm + rm                                     # centroid of the group as it stands (the map's pool centroid + residual mean)
+        r = ro - rm
+        c = mf + kc * (c - mf)
+        if ks == 0.0:
+            r = rf
+        elif ks != 1.0:
+            S, Sf = _cov(r), _cov(rf)
+            if len(r) > 2 and np.linalg.det(S) > 1e-12 * np.trace(S) ** 2:
+                St = Sf + ks * (S - Sf)
+                v = _sqrtm(St) @ np.linalg.inv(_sqrtm(S)) @ np.vstack([r.real, r.imag])
+                r = v[0] + 1j * v[1]
+            else:                                       # a few electrons / rank-deficient: independent-sum mix, covariance only on average
+                r = np.sqrt(ks) * r + np.sqrt(1 - ks) * rf
+        mm, ro = c, r
+        return mm, ro
+
+    def _moments(self, mm: complex, ro: np.ndarray, xf: np.ndarray) -> tuple:
+        """Moment-only erasure of one group (slice) at the turn-to-turn transfer; mm, ro as in _memory, xf the fresh birth offsets.
+        Centroid c = mm + mean(ro) goes to c - eta_c (c - mf + n_c), mf the mean fresh offset, n_c complex Gaussian noise of rms
+        recycle_moment_sigma_c_m per plane. Covariance S of the group (about its mean) goes to St = S - eta_s (S_meas - S_f), S_f
+        the covariance of the fresh offsets and S_meas = S with independent Gaussian noise on its three elements (xx, yy: relative
+        sigma_s of the element; xy: sigma_s times sqrt(Sxx Syy)); the offsets are mapped linearly by St^1/2 S^-1/2 (symmetric roots),
+        so the coordinates whitened by the own covariance, and with them every higher moment, are unchanged. eta_s = 1 and zero
+        noise gives exactly S_f. A St that is not positive definite (an eigenvalue <= 0) is clipped to eigenvalues >= 1e-3 of the trace of S_f; otherwise it is used as it is. Groups
+        of <= 2 electrons or with singular S keep their shape (centroid only)."""
+        cfg = self.cfg
+        ec, es, sc, ss = cfg.recycle_moment_eta_c, cfg.recycle_moment_eta_s, cfg.recycle_moment_sigma_c_m, cfg.recycle_moment_sigma_s
+        rm = ro.mean()
+        c = mm + rm
+        r = ro - rm
+        if ec:
+            n = complex(self.rng_m.normal(0, sc), self.rng_m.normal(0, sc)) if sc > 0 else 0j
+            mf = xf.mean()
+            c = c - ec * (c - mf + n)
+        if es:
+            S, Sf = _cov(r), _cov(xf - xf.mean())
+            if len(r) > 2 and np.linalg.det(S) > 1e-12 * np.trace(S) ** 2:
+                Sm = S.copy()
+                if ss > 0:
+                    z = self.rng_m.normal(0, ss, 3)
+                    Sm[0, 0] *= 1 + z[0]; Sm[1, 1] *= 1 + z[1]
+                    Sm[0, 1] = Sm[1, 0] = S[0, 1] + z[2] * np.sqrt(S[0, 0] * S[1, 1])
+                St = S - es * (Sm - Sf)
+                w, V = np.linalg.eigh(0.5 * (St + St.T))
+                if w.min() <= 0:
+                    St = V @ np.diag(np.maximum(w, 1e-3 * np.trace(Sf))) @ V.T
+                v = _sqrtm(St) @ np.linalg.inv(_sqrtm(S)) @ np.vstack([r.real, r.imag])
+                r = v[0] + 1j * v[1]
+        return c, r
 
     def describe(self) -> dict:
         g = max(self.stat["groups"], 1)
@@ -734,9 +904,15 @@ class Recycler:
                     scraped_weight=self.stat["scraped_weight"], recycled_weight=self.stat["recycled_weight"],
                     centroid_in_rms_m=float(np.sqrt(self.stat["m_in2"] / g)), centroid_out_rms_m=float(np.sqrt(self.stat["m_out2"] / g)),
                     strain_in_rms=float(np.sqrt(self.stat["q_in2"] / g)), strain_out_rms=float(np.sqrt(self.stat["q_out2"] / g)),
-                    groups=self.stat["groups"])
+                    groups=self.stat["groups"], wrap_births=self.stat["wrap_births"], wrap_replaced=self.stat["wrap_replaced"])
 
 
 def _sqrtm(S: np.ndarray) -> np.ndarray:
     w, V = np.linalg.eigh(0.5 * (S + S.T))
     return V @ np.diag(np.sqrt(np.maximum(w, 1e-300))) @ V.T
+
+
+def _cov(z: np.ndarray) -> np.ndarray:
+    r = z - z.mean()
+    sxy = np.mean(r.real * r.imag)
+    return np.array([[np.mean(r.real**2), sxy], [sxy, np.mean(r.imag**2)]])

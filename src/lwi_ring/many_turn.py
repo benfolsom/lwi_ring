@@ -116,6 +116,19 @@ def absorb(s: Species, ids: np.ndarray, before: np.ndarray, aperture: float,
     return ids[keep]
 
 
+def remove(s: Species, ids: np.ndarray, keep: np.ndarray) -> np.ndarray:
+    """Drop the particles not in keep (collimation losses; recorded by collimation.py)."""
+    if keep.all():
+        return ids
+    s.position_m = s.position_m[keep]
+    s.momentum_mc = s.momentum_mc[keep]
+    s.population = s.population[keep]
+    s.group_index = s.group_index[keep]
+    if hasattr(s, "delta"):
+        s.delta = s.delta[keep]
+    return ids[keep]
+
+
 def copy_prefix(source: Path, destination: Path, turn: int, journal_bytes: dict) -> None:
     for name in ("turns.jsonl", "losses.jsonl"):
         # Never parse uncommitted bytes. A killed process can leave its last
@@ -174,7 +187,7 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
         atomic_npz(directory / "tracked_initial.npz", **{role + "_" + key: value
             for role, item in tracked.items() for key, value in item.items() if key != "by_bunch"})
     solver = RingFields(cfg) if cfg.collective else None
-    backend = solver.backend if solver else backend_for(cfg.backend)
+    backend = solver.backend if solver else backend_for(cfg.backend, cfg.precision)
     lens = ElectronLens(cfg, p) if cfg.lens_enabled() else None
     errors = LatticeErrors(cfg, p) if cfg.errors_enabled() else None
     track = Racetrack(cfg, p) if cfg.racetrack() else None
@@ -189,6 +202,16 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
         damper = Damper(cfg, orbit_ref)
         if state is not None:
             raise ValueError("resuming a damper run from a checkpoint is not implemented (the damper history is not saved)")
+    coll = None
+    if cfg.coll_enabled():
+        if state is not None:
+            raise ValueError("resuming a collimation run from a checkpoint is not implemented (the loss tallies are not saved)")
+        if settings.aperture_m != cfg.aperture_m:
+            raise ValueError("with collimation the ring wall is Config.aperture_m: do not override it with --aperture-mm")
+        from .collimation import Collimation
+        from .lattice_linear import LinearLattice
+        coll = Collimation(cfg, p, orbit_ref if orbit_ref is not None or cfg.coll_centre != "orbit"
+                           else LinearLattice(cfg, p, track, errors).closed_orbit())
     if lens is not None and lens.drift is not None and state is not None:
         raise ValueError("resuming a column-drift run from a checkpoint is not implemented (the electron centroids are not saved)")
     if lon and state is not None and "longitudinal" in header:
@@ -207,6 +230,7 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
         **(dict(lattice_errors=errors.describe()) if errors else {}),
         **(dict(racetrack=p.get("racetrack_match") or track.describe()) if track else {}),
         **(dict(longitudinal=lon.describe()) if lon else {}),
+        **(dict(collimation=coll.describe()) if coll else {}),
         sampling="initial 4D amplitude quantiles, equally allocated per bunch; unweighted stratified maps",
         accounting="source N*q, observer q, inertia m, diagnostics N; surviving energy omits wall heat, fields, radiation, and external work")
     save(directory / "provenance.json", provenance)
@@ -287,7 +311,10 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
                     drift_beam(s, meta[i]["role"], 0.5 * dt, lon, track)
                     if not np.isfinite(s.position_m).all():
                         raise ValueError("nonfinite position")
-                    ids[i] = absorb(s, ids[i], before, settings.aperture_m, step, phase, cfg, directory / "losses.jsonl")
+                    if coll is None:
+                        ids[i] = absorb(s, ids[i], before, settings.aperture_m, step, phase, cfg, directory / "losses.jsonl")
+                    else:
+                        ids[i] = remove(s, ids[i], ~coll.process(s, before, step, phase, None))
                     s.position_m[:, 2] %= cfg.circumference_m
                 if lon:
                     lon.half_ref(dt)
@@ -348,6 +375,8 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
                     frames[role].append(frame)
             if step % cfg.steps_per_turn == 0:
                 turn = step // cfg.steps_per_turn
+                if coll:
+                    coll.end_turn(turn, directory)
                 atomic_npz(directory / "tracked" / f"turn_{turn:06d}.npz", **{
                     role: np.asarray(value) for role, value in frames.items()})
                 frames = {role: [] for role in tracked}
