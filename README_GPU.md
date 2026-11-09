@@ -57,6 +57,19 @@ Output goes to `$LWI_RING_OUT/<NAME>/` (an existing directory of that name is re
 emittance grows by 50%. Progress is in `$LWI_RING_OUT/<NAME>/progress.json` and in the log. `key=value` overrides after the name
 are accepted, e.g. `turns=5`. Run one job at a time per GPU. A 24 GB card is ample (the largest configurations need a few GB).
 
+### Longer job: leading configuration at 8x resolution
+
+`examples/leading_8x_q825_s1024.json` is the leading 400 MeV configuration at 8 times the standard macroparticles (524 288 per bunch),
+tunes 8.25 and 1 024 steps per turn, for 100 turns. It checks whether the low emittance growth and the small halo hold at higher
+resolution. Run it like the test job, under its own name:
+
+```bash
+nohup python -m lwi_ring.studyrun examples/leading_8x_q825_s1024.json leading_8x --shape --stop-growth=0.5 > leading_8x.log 2>&1 &
+```
+
+After about an hour, send the last lines of the log (they give seconds per step and the remaining-time estimate). When it finishes,
+send the files listed in section 4. It can be stopped and restarted from the beginning without harm.
+
 ## 4. Files to send back (from `$LWI_RING_OUT/<NAME>/`)
 
 | File | Send |
