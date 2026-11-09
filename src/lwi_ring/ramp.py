@@ -56,7 +56,8 @@ def validate(cfg) -> None:
     if cfg.ramp_final_energy_mev is None:
         if (cfg.ramp_time_s or cfg.ramp_comp_programme != "constant" or cfg.rf_programme != "constant"
                 or cfg.ramp_solenoid_follow or cfg.ramp_electron_beta_error or cfg.ramp_column_sigma != "fixed"
-                or cfg.ramp_quad_scale != 1.0 or cfg.ramp_dual_alpha or cfg.ramp_energy_table is not None):
+                or cfg.ramp_quad_scale != 1.0 or cfg.ramp_dual_alpha or cfg.ramp_energy_table is not None
+                or cfg.ramp_wfb_gains != "follow" or cfg.ramp_coll_physics != "fixed"):
             raise ValueError("ramp options need ramp_final_energy_mev")
         return
     if not (math.isfinite(cfg.ramp_final_energy_mev) and cfg.ramp_final_energy_mev > cfg.energy_mev):
@@ -74,8 +75,10 @@ def validate(cfg) -> None:
         raise ValueError("the ramp sets the energy gain per turn itself: leave rf_dE_turn_ev unset")
     if cfg.opposing != "absent":
         raise ValueError("the ramp is implemented for a proton-only beam (rigid or dynamic columns, or lenses)")
-    if cfg.column_electrons == "dynamic" and (cfg.wfb_enable or cfg.rem_birth_track):
-        raise ValueError("a ramp with dynamic electrons supports neither wall feedback nor rem_birth_track")
+    if cfg.column_electrons == "dynamic" and cfg.rem_birth_track:
+        raise ValueError("a ramp with dynamic electrons does not support rem_birth_track")
+    if cfg.ramp_wfb_gains not in ("follow", "fixed") or cfg.ramp_coll_physics not in ("follow", "fixed"):
+        raise ValueError("ramp_wfb_gains and ramp_coll_physics: follow | fixed")
     if cfg.ramp_shape == "table":
         tab = cfg.ramp_energy_table
         if not (tab and len(tab) >= 2 and all(len(r) == 2 for r in tab)):

@@ -114,12 +114,13 @@ class WallFeedback:
         self.nb = int(math.ceil(self.Cr / self.bin))
         self.bin = self.Cr / self.nb
         self.vb = p["beta"] * C
+        self.vb0 = self.vb                                  # design speed: the slice frame moves with it (the ramp's shift handles the rest)
         self.gamma = p["gamma"]
         sp, se = cfg.sigma_m, lens.shape["sigma"]
         self.sp2 = sp * sp + se * se
-        g2 = self.gamma**2
-        self.k1 = cfg.wfb_gain1 * np.exp(1j * math.radians(cfg.wfb_phase1_deg)) * cfg.wfb_kappa1 / (4 * math.pi * EPS0 * self.sp2 * g2)
-        self.k2 = cfg.wfb_gain2 * np.exp(1j * math.radians(cfg.wfb_phase2_deg)) * cfg.wfb_kappa2 / (16 * math.pi * EPS0 * self.sp2**2 * g2)
+        self.sp2_0 = self.sp2
+        self.size_scale = 1.0
+        self.gain_constants()
         self.lmax = max(cfg.wfb_sectors + 2, 18)                # field and pickup harmonics: < 1% error to 120 mm for 8 sectors
         self.bore = Bore(cfg.wfb_sectors, cfg.wfb_bore_m, self.lmax)
         # field basis: E1 = 1, E1 = i, c2 = 1, c2 = i
@@ -129,11 +130,8 @@ class WallFeedback:
         # slice filter: Gaussian, the PIC's longitudinal resolution (deposit + gather of the quadratic shape, rms 0.707 cell) in quadrature
         # with the electronics bandwidth (Gaussian response, rms time 0.1325 / f_3dB)
         self.sig_pic = cfg.wfb_smooth_m if cfg.wfb_smooth_m >= 0 else 0.7071 * cfg.circumference_m / cfg.grid[2]
-        self.sig_bw = self.vb * 0.1325 / (cfg.wfb_bw_mhz * 1e6) if cfg.wfb_bw_mhz > 0 else 0.0
-        self.sig = math.hypot(self.sig_pic, self.sig_bw)
-        k = np.fft.fftfreq(self.nb, d=self.bin)
-        self.kern = np.exp(-0.5 * (2 * math.pi * k * self.sig) ** 2) if self.sig > 0 else None
-        self.shift_m = self.vb * cfg.wfb_delay_ns * 1e-9
+        self.freq = np.fft.fftfreq(self.nb, d=self.bin)
+        self.speed_constants()
         # pickup of each driven segment: the most downstream region that has measured every slice the filter needs (3 sigma behind the
         # slice read at the segment centre, or at its entrance without the sweep), moved wfb_pickup_offset - 1 further upstream;
         # segments without such a region upstream of the column (inside the arc) are not driven.
@@ -161,13 +159,36 @@ class WallFeedback:
         self.reset_stats()
 
     # ---- helpers -----------------------------------------------------------------------------------
+    def gain_constants(self) -> None:
+        """Field constants of the hold law at the present gamma and beam size (sp2 = proton + electron size squared)."""
+        cfg, g2 = self.cfg, self.gamma**2
+        self.k1 = cfg.wfb_gain1 * np.exp(1j * math.radians(cfg.wfb_phase1_deg)) * cfg.wfb_kappa1 / (4 * math.pi * EPS0 * self.sp2 * g2)
+        self.k2 = cfg.wfb_gain2 * np.exp(1j * math.radians(cfg.wfb_phase2_deg)) * cfg.wfb_kappa2 / (16 * math.pi * EPS0 * self.sp2**2 * g2)
+
+    def speed_constants(self) -> None:
+        """Electronics bandwidth (a time: slice filter length) and delay (a time: pickup-to-kicker shift) at the present speed."""
+        cfg = self.cfg
+        self.sig_bw = self.vb * 0.1325 / (cfg.wfb_bw_mhz * 1e6) if cfg.wfb_bw_mhz > 0 else 0.0
+        self.sig = math.hypot(self.sig_pic, self.sig_bw)
+        self.kern = np.exp(-0.5 * (2 * math.pi * self.freq * self.sig) ** 2) if self.sig > 0 else None
+        self.shift_m = self.vb * cfg.wfb_delay_ns * 1e-9
+
+    def set_ramp(self, beta: float, gamma: float, size_scale: float) -> None:
+        """Ramp (ramp_wfb_gains = follow): the gain constants and the time-based lengths at the present energy and beam size. The pickup
+        regions and the causal table layout stay as built at injection (the delay and filter change by the beta ratio only)."""
+        self.vb, self.gamma, self.size_scale = beta * C, gamma, size_scale
+        self.sp2 = self.sp2_0 * size_scale**2
+        self.gain_constants()
+        self.speed_constants()
+
+    # ---- helpers (cont.) ---------------------------------------------------------------------------
     def reset_stats(self):
         self.st = dict(v1=[], v2=[], vp=[], s1=[], s2=[], limited=0, applied=0, kick2=0.0, nkick=0)
 
     def frame(self, t: float, shift: float, meta: list) -> float:
         """lab position of slice 0's lower edge: half a bunch spacing behind bunch 0's design centre, moving at the design speed."""
         z0 = next(info["design_z_m"] for info in meta if info["role"] == "proton")
-        return (z0 + self.vb * t + shift - self.Cr / (2 * self.cfg.harmonic)) % self.Cr
+        return (z0 + self.vb0 * t + shift - self.Cr / (2 * self.cfg.harmonic)) % self.Cr
 
     def slice_of(self, z: np.ndarray, zref: float) -> np.ndarray:
         return (((z - zref) % self.Cr) / self.bin).astype(np.int64).clip(0, self.nb - 1)
@@ -307,7 +328,7 @@ class WallFeedback:
         f = math.sqrt(2 * math.sqrt(math.pi) * self.sig / self.bin) if self.sig > 0 else 1.0     # rms quoted after the slice filter
         lam = self.lam_pk * self.bin                                                     # peak charge per slice
         s1 = cfg.wfb_noise1_m * lam * f / math.sqrt(2)
-        s2 = cfg.wfb_noise2 * 2 * self.cfg.sigma_m**2 * lam * f / math.sqrt(2)
+        s2 = cfg.wfb_noise2 * 2 * (self.cfg.sigma_m * self.size_scale)**2 * lam * f / math.sqrt(2)
         self.N1[ii] = s1 * (self.rng.standard_normal(n) + 1j * self.rng.standard_normal(n)) if s1 > 0 else 0
         self.N2[ii] = s2 * (self.rng.standard_normal(n) + 1j * self.rng.standard_normal(n)) if s2 > 0 else 0
 
@@ -331,7 +352,7 @@ class WallFeedback:
         self.st["v1"].append(v1[occ]); self.st["v2"].append(v2[occ]); self.st["vp"].append(vp[occ])
         lam = max(self.lam_pk, 1e-300)
         self.st["s1"].append(np.abs(d1[occ]) / lam)
-        self.st["s2"].append(np.abs(d2[occ]) / (lam * 2 * self.cfg.sigma_m**2))
+        self.st["s2"].append(np.abs(d2[occ]) / (lam * 2 * (self.cfg.sigma_m * self.size_scale)**2))
 
     def end_turn(self, turn: int) -> dict:
         def q(a):

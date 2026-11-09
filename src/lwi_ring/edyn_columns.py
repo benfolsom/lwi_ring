@@ -128,6 +128,7 @@ class DynamicColumns:
         self.rc = Recycler(cfg, lens) if cfg.recycle_stride else None
         self.field_scale = 1.0                            # ramp: confining-field scale (ramp_solenoid_follow)
         self.ramp_sigma = 1.0                             # ramp: fixed gun size relative to injection (ramp_column_sigma)
+        self.beta_ref = None                              # ramp: reference beta of the step (electron-velocity diagnostic)
         self.m2 = float(cfg.column_recentre_m2)
         self.dip = float(cfg.column_recentre_dipole)
         self.K = int(cfg.column_recentre_stations)
@@ -177,6 +178,9 @@ class DynamicColumns:
         """Ramp state of the step: local compensation of new births and of live electrons (weights follow the proton population
         each step), confining-field scale, fixed gun size scale, and the station side-kick rigidity."""
         self.local, self.field_scale, self.ramp_sigma = local, field_scale, sigma_scale
+        self.beta_ref = beta
+        if self.rc:
+            self.rc.report_timing = True
         if self.K:
             from scipy.constants import elementary_charge as E, proton_mass as MP
             self.side = self.cfg.column_recentre_side_kick * abs(self.cfg.solenoid_bz_t * field_scale) * E / (MP * C * gamma * beta)
@@ -620,6 +624,10 @@ class DynamicColumns:
                 mean = np.average(xy, axis=0, weights=w)
                 row.update(centroid_xy_m=mean.tolist(),
                            rms_xy_m=np.sqrt(np.average((xy - mean)**2, axis=0, weights=w)).tolist())
+            if self.beta_ref is not None and live.any():       # ramp: electrons co-move with the protons (beta_e = beta_p)
+                bz = e.velocity_m_s[live, 2] / C
+                row["electron_beta_over_reference"] = dict(mean=float(bz.mean() / self.beta_ref), min=float(bz.min() / self.beta_ref),
+                                                           max=float(bz.max() / self.beta_ref))
             rows[e.name] = row
         if self.K:
             rows["recentre"] = self.describe_recentre()
@@ -650,6 +658,8 @@ class Recycler:
         self.cph = np.exp(1j * np.radians(cfg.recycle_centroid_phase_deg))
         self.rng = np.random.default_rng(cfg.seed * 1000003 + 15485863 + cfg.recycle_seed) if cfg.recycle_noise_m > 0 else None
         self.step = 0
+        self.report_timing = False                      # ramp: report the exit-to-rebirth lag (steps) of the recycled slices
+        self.lag = dict(n=0, sum=0.0, min=10**9, max=-1)
         self.stored = bool(getattr(cfg, "recycle_stored", False))
         self.rng_w = np.random.default_rng(cfg.seed * 1000003 + 32452843 + cfg.recycle_wrap_seed) \
             if self.stored and (cfg.recycle_shift_m or cfg.recycle_shift_rms_m or cfg.recycle_replace or getattr(cfg, "recycle_bunch_swap", False)) else None
@@ -661,6 +671,13 @@ class Recycler:
         self.off, self.src, self.when, self.sgen, self.gen, self.fac = {}, {}, {}, {}, {}, {}
         self.stat = dict(fresh=0, recycled=0, scraped_weight=0.0, recycled_weight=0.0, m_in2=0.0, m_out2=0.0, q_in2=0.0, q_out2=0.0,
                          groups=0, wrap_births=0, wrap_replaced=0)
+
+    def expected_lag(self) -> float | None:
+        """Steps a slice needs from the end of column k to the start of column k + d (the proton path between them, with beta_e = beta_p
+        and a transport path as long as the ring's: lag = path / (C / steps_per_turn) at every energy). Without resets only."""
+        if self.resets > 1:
+            return None
+        return (self.d * self.cell - self.length) / (self.cfg.circumference_m / self.cfg.steps_per_turn)
 
     def fresh(self, c: np.ndarray) -> np.ndarray:
         """Stream starts (gun): the first d columns of the turn, and every recycle_gun_every-th column of a stream."""
@@ -753,6 +770,10 @@ class Recycler:
             sel = np.flatnonzero(rec & (c == col))
             ii = bidx[sel]
             t0 = t0_own = int(np.median(when[ii]))
+            if not wrap:                                    # transport lag of this group: steps from the exit at unit col - d to now
+                lag = self.step - t0_own
+                self.lag["n"] += 1; self.lag["sum"] += lag
+                self.lag["min"] = min(self.lag["min"], lag); self.lag["max"] = max(self.lag["max"], lag)
             if wrap and (self.cfg.recycle_shift_m or self.cfg.recycle_shift_rms_m):
                 dz = self.cfg.circumference_m / self.cfg.steps_per_turn
                 t0 += int(round((self.cfg.recycle_shift_m + (self.rng_w.normal(0, self.cfg.recycle_shift_rms_m)
@@ -900,7 +921,9 @@ class Recycler:
 
     def describe(self) -> dict:
         g = max(self.stat["groups"], 1)
-        return dict(stride=self.d, fresh_births=self.stat["fresh"], recycled_births=self.stat["recycled"],
+        timing = dict(transport_lag_steps=dict(mean=self.lag["sum"] / max(self.lag["n"], 1), min=self.lag["min"], max=self.lag["max"],
+                                               expected=self.expected_lag(), groups=self.lag["n"])) if self.report_timing else {}
+        return dict(**timing, stride=self.d, fresh_births=self.stat["fresh"], recycled_births=self.stat["recycled"],
                     scraped_weight=self.stat["scraped_weight"], recycled_weight=self.stat["recycled_weight"],
                     centroid_in_rms_m=float(np.sqrt(self.stat["m_in2"] / g)), centroid_out_rms_m=float(np.sqrt(self.stat["m_out2"] / g)),
                     strain_in_rms=float(np.sqrt(self.stat["q_in2"] / g)), strain_out_rms=float(np.sqrt(self.stat["q_out2"] / g)),

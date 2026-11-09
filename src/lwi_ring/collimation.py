@@ -120,6 +120,19 @@ class Collimation:
         self.initial_population = None
         self.events: list[dict] = []
 
+    def set_ramp(self, gamma: float, tol: float = 0.002) -> None:
+        """Ramp (ramp_coll_physics = follow): primary-foil physics at the present kinetic energy, rebuilt when it moved by tol (relative).
+        coll_physics_energy_mev, when set, scales with the kinetic energy relative to injection."""
+        e_now = (gamma - 1) * MP_MEV
+        if abs(e_now - getattr(self, "e_built", self.cfg.energy_mev)) < tol * e_now:
+            return
+        self.e_built = e_now
+        energy = (self.cfg.coll_physics_energy_mev * e_now / self.cfg.energy_mev) if self.cfg.coll_physics_energy_mev else e_now
+        self.physics_energy_mev = energy
+        for e in self.elements:
+            if e["kind"] == "primary":
+                e["physics"] = foil_physics(e["material"], e["thickness_m"], energy)
+
     # ---- geometry ------------------------------------------------------------------------------------------------------------------
     def aperture_at(self, z: np.ndarray) -> np.ndarray:
         a = np.full(len(z), float(self.cfg.aperture_m))
@@ -229,7 +242,7 @@ class Collimation:
     def describe(self) -> dict:
         return dict(elements=[{k: v for k, v in e.items()} for e in self.elements], aperture_m=self.cfg.aperture_m,
                     arc_aperture_m=self.cfg.coll_arc_aperture_m, centre=self.cfg.coll_centre,
-                    physics_energy_mev=self.cfg.coll_physics_energy_mev or self.cfg.energy_mev)
+                    physics_energy_mev=getattr(self, "physics_energy_mev", self.cfg.coll_physics_energy_mev or self.cfg.energy_mev))
 
     def end_turn(self, turn: int, directory: Path) -> dict:
         total = sum((self.initial_population or {}).values()) or 1.

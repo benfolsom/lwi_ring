@@ -242,6 +242,13 @@ class Config:
     ramp_solenoid_follow: float = 0.0
     ramp_quad_scale: float = 1.0              # scale of the quadrupole make-up (1 = tunes held exactly; test knob)
     ramp_regrid_tol: float = 0.01             # rebuild the solver's Green function when gamma moved by this fraction
+    # Ramp with wall-strip feedback and collimation (inert without a ramp): ramp_wfb_gains "follow" re-evaluates the strip gain constants every
+    # step at the present gamma, beta and column size (the hold law keeps its unit-gain cancellation; the delay in ns and the electronics
+    # bandwidth are real times, hence lengths that grow with beta), "fixed" keeps the injection constants. ramp_coll_physics "follow" evaluates
+    # the primary foils' scattering and energy loss at the present kinetic energy (coll_physics_energy_mev, when set, scales with it), "fixed"
+    # keeps them at the injection value.
+    ramp_wfb_gains: str = "follow"
+    ramp_coll_physics: str = "fixed"
     # Further ramp options (inert at their defaults): ramp_shape "dual" adds a second magnet harmonic,
     # b(s) = [(1 - cos pi s) + (alpha/4)(1 - cos 2 pi s)]/2 of the momentum swing (start (1 + alpha) times steeper, same end points);
     # ramp_shape "table": kinetic energy interpolated in ramp_energy_table (e.g. a real cycle mapped onto the twin);
@@ -635,9 +642,8 @@ class Config:
                 if self.dyn_birth_sigma == "proton_cov" and self.dyn_ellipticity:
                     raise ValueError("dyn_ellipticity cannot be combined with dyn_birth_sigma = proton_cov")
             if self.recycle_stride:
-                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack() \
-                        or self.ramp_enabled():
-                    raise ValueError("recycle_stride needs dynamic electrons on the straights of a periodic lattice, without a ramp")
+                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack():
+                    raise ValueError("recycle_stride needs dynamic electrons on the straights of a periodic lattice")
                 if not (0 < self.recycle_stride < (self.lattice_periods or 0) * self.electron_resets() and self.recycle_gun_every >= 0
                         and 0 <= self.recycle_centroid_eta <= 1 and 0 <= self.recycle_strain_eta <= 1
                         and 0 <= self.recycle_current_loss < 1 and self.recycle_scrape_sigma >= 0 and self.recycle_window_m > 0
@@ -661,8 +667,8 @@ class Config:
             elif any(getattr(self, k) != v for k, v in RECYCLE_DEFAULTS.items()):
                 raise ValueError("recycle_* options need recycle_stride > 0")
             if self.wfb_enable:
-                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack() or self.ramp_enabled():
-                    raise ValueError("wfb_enable needs dynamic electrons on the straights of a periodic lattice, without a ramp")
+                if self.column_electrons != "dynamic" or self.column_sections != "straights" or not self.racetrack():
+                    raise ValueError("wfb_enable needs dynamic electrons on the straights of a periodic lattice")
                 if not (self.wfb_segment_m > 0 and self.wfb_sectors >= 3 and self.wfb_bore_m > 0 and self.wfb_pickup_offset >= 1
                         and self.wfb_bin_m > 0 and self.wfb_bw_mhz >= 0 and self.wfb_baseline_turns >= 0 and self.wfb_start_turn >= 0
                         and self.wfb_noise1_m >= 0 and self.wfb_noise2 >= 0 and self.wfb_vmax_v >= 0
@@ -2635,6 +2641,10 @@ def run(cfg: Config, directory: Path, pilot_steps: int | None = None,
         if ramp:
             dt = ramp.begin_step(protons)
             t_mid, t_end = ramp.t_mid(), ramp.t + dt
+            if wfb and cfg.ramp_wfb_gains == "follow":
+                wfb.set_ramp(ramp.beta, ramp.gamma, ramp.sigma_scale)
+            if coll and cfg.ramp_coll_physics == "follow":
+                coll.set_ramp(ramp.gamma)
         else:
             t_mid, t_end = (step-0.5)*dt, step*dt
         for s, info in zip(beams, meta):
