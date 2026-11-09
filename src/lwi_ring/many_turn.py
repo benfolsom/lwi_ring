@@ -302,6 +302,8 @@ def run(cfg: Config, directory: Path, settings: Settings = Settings(), resume: P
             if ramp:
                 dt = ramp.begin_step([s for s, info in zip(beams, meta) if info["role"] == "proton"])
                 t_mid = ramp.t_mid()
+                if coll and cfg.ramp_coll_physics == "follow":
+                    coll.set_ramp(ramp.gamma)
                 landau_step = {role: ramp.landau_terms(terms) for role, terms in landau.items()}
             else:
                 t_mid = (step - 0.5) * dt

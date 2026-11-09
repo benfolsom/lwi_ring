@@ -135,8 +135,14 @@ class WallFeedback:
         # pickup of each driven segment: the most downstream region that has measured every slice the filter needs (3 sigma behind the
         # slice read at the segment centre, or at its entrance without the sweep), moved wfb_pickup_offset - 1 further upstream;
         # segments without such a region upstream of the column (inside the arc) are not driven.
-        xr = (np.arange(self.nseg) + (0.5 if cfg.wfb_sweep else 0.0)) * self.Ls + self.shift_m
-        rmax = np.floor((xr - 3 * self.sig - self.bin) / self.Ls + 1e-9).astype(np.int64) - 1
+        # (in a ramp the filter length and the delay grow with beta: the choice must be causal at both ends of the ramp)
+        speeds = [(self.sig, self.shift_m)]
+        if cfg.ramp_enabled() and cfg.ramp_wfb_gains == "follow":
+            from .ramp import gamma_of_energy
+            ratio = math.sqrt(1 - gamma_of_energy(cfg.ramp_final_energy_mev) ** -2) * C / self.vb
+            speeds.append((math.hypot(self.sig_pic, self.sig_bw * ratio), self.shift_m * ratio))
+        rmax = np.min([np.floor(((np.arange(self.nseg) + (0.5 if cfg.wfb_sweep else 0.0)) * self.Ls + sh - 3 * sg - self.bin) / self.Ls
+                                + 1e-9).astype(np.int64) - 1 for sg, sh in speeds], axis=0)
         self.rk = np.minimum(rmax, np.arange(self.nseg) - 1) - (self.j - 1)
         self.driven = self.rk >= -self.ja
         self.rk = np.where(self.driven, self.rk, -self.ja)
@@ -175,7 +181,7 @@ class WallFeedback:
 
     def set_ramp(self, beta: float, gamma: float, size_scale: float) -> None:
         """Ramp (ramp_wfb_gains = follow): the gain constants and the time-based lengths at the present energy and beam size. The pickup
-        regions and the causal table layout stay as built at injection (the delay and filter change by the beta ratio only)."""
+        regions and the causal table layout stay as built at injection, chosen causal for the injection and the final speed."""
         self.vb, self.gamma, self.size_scale = beta * C, gamma, size_scale
         self.sp2 = self.sp2_0 * size_scale**2
         self.gain_constants()

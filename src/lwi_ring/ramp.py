@@ -20,7 +20,22 @@ programmed time dependence of a run and is advanced once per step by the two run
 * the electron columns follow the proton velocity (beta_e = beta_p, optionally with a relative error), the
   proton line density (the rigid electron line density is the proton macroparticle density), a programmed
   compensation fraction f(t) and a programmed transverse size;
-* the field solver's longitudinal Green function is rebuilt when gamma has moved by ``ramp_regrid_tol``.
+* the field solver's longitudinal Green function is rebuilt when gamma has moved by ``ramp_regrid_tol``;
+* electron recycling (``recycle_*``) needs no energy rule of its own: the streams are carried by step count and proton index, a step
+  is one C / steps_per_turn of path at every energy, and a re-born electron takes the momentum of its proton slice (beta_e = beta_p).
+  The transport map (rotation, centroid cleaning, noise, scraping) keeps its configured values; the exit-to-rebirth lag in steps is
+  reported (``electrons.recycle.transport_lag_steps``) and stays constant;
+* wall-strip feedback (``wfb_*``, ramp_wfb_gains = follow): the field constants of the hold law are re-evaluated every step at the present
+  gamma and column size (1/(gamma^2 (sigma_p^2 + sigma_e^2)): unit gain keeps cancelling the beam's own dipole field), the electronics
+  delay and bandwidth are real times and so lengths proportional to beta, the amplifier limit stays in volts, and the slice frame follows
+  the reference particle (the run loop's z_shift);
+* column ends (``cend_*``) keep their geometry, residual-kick angles and thin quadrupole strengths (magnets ramped with the rigidity, a
+  constant k); with ramp_comp_ring_average the ring share of the columns is that of the electron regions;
+* collimation (ramp_coll_physics = follow): the primary foils' scattering angle, energy loss and nuclear probability are re-evaluated at the
+  present kinetic energy; the collimator radii stay fixed (the beam shrinks adiabatically).
+
+Accepted approximations: a live electron keeps the longitudinal momentum it was born with (a column transit lasts tens of steps; the
+reference gains well under 0.1% of its momentum in that time); the strips' pickup layout is fixed (chosen causal at both ends of the ramp).
 
 What this does not model: the induced azimuthal electric field of a ramping solenoid, power-supply ripple,
 the gun voltage offset needed to cancel the electron's own potential well (the nominal electron energy
