@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import pytest
 
 import harness
-from cases import J1
+from cases import DYN0, J1
 
 # the unmodified package to compare against: the src directory of another lwi_ring checkout, set in LWI_RING_REFERENCE_SRC
 REF_SRC = Path(os.environ.get("LWI_RING_REFERENCE_SRC", "/nonexistent"))
@@ -156,3 +156,25 @@ def test_energy_table():
         Config(**rigid_ramp(ramp_shape="table", ramp_energy_table=[[0.0, 70.0], [1e-4, 74.0]])).validate()
     with pytest.raises(ValueError, match="needs ramp_shape"):
         Config(**rigid_ramp(ramp_energy_table=tab)).validate()
+
+
+def test_flat_ramp_equals_no_ramp_with_recycling_and_strips(output_root):
+    """A ramp whose final energy equals the injection energy must give the no-ramp result (to rounding) with recycled electron streams
+    and wall-strip feedback on. Guards the ramp hooks of those two parts: a strip gain constant or slice frame, or a recycling transport,
+    that is re-evaluated at the wrong energy or time base in a ramp would drift from the no-ramp run even without any acceleration."""
+    import numpy as np
+    from lwi_ring import driver
+    base = {**J1, **DYN0, **TINY, "turns": 1, "proton_delta_rms": 0.0, "rf_voltage_v": 60e3, "rf_rms_psi_rad": 0.4,
+            "recycle_stride": 2, "wfb_enable": True, "wfb_segment_m": 4.0, "wfb_start_turn": 0, "wfb_vmax_v": 500.0}
+    flat = {**base, "ramp_final_energy_mev": base["energy_mev"], "ramp_time_s": 1e-4, "ramp_shape": "linear", "ramp_column_sigma": "adiabatic"}
+    out = {}
+    for name, cfg in (("noramp", base), ("flat", flat)):
+        driver.run(driver.Config(**cfg), output_root / f"flat_{name}")
+        out[name] = np.load(output_root / f"flat_{name}" / "final_particles.npz")
+    rows = json.loads((output_root / "flat_flat" / "turns.json").read_text())
+    rec = [r["electrons"]["recycle"] for r in rows if isinstance(r, dict) and "electrons" in r][-1]
+    assert rec["recycled_births"] > 0 and (output_root / "flat_flat" / "wallfb.jsonl").exists()
+    for key in out["noramp"].files:
+        a, b = out["noramp"][key], out["flat"][key]
+        if a.dtype.kind == "f":
+            assert np.max(np.abs(a - b)) <= 1e-6 * (np.max(np.abs(a)) + 1e-300), key

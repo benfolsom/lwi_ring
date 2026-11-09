@@ -677,7 +677,12 @@ class Recycler:
         and a transport path as long as the ring's: lag = path / (C / steps_per_turn) at every energy). Without resets only."""
         if self.resets > 1:
             return None
-        return (self.d * self.cell - self.length) / (self.cfg.circumference_m / self.cfg.steps_per_turn)
+        length = self.length
+        if self.cfg.cend_active():                      # the electrons fill the electron region only: its end to the next one's start
+            from .driver import electron_regions
+            region = electron_regions(self.cfg)[0]
+            length = float(region[1] - region[0])
+        return (self.d * self.cell - length) / (self.cfg.circumference_m / self.cfg.steps_per_turn)
 
     def fresh(self, c: np.ndarray) -> np.ndarray:
         """Stream starts (gun): the first d columns of the turn, and every recycle_gun_every-th column of a stream."""

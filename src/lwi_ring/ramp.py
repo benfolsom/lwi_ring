@@ -60,8 +60,8 @@ def validate(cfg) -> None:
                 or cfg.ramp_wfb_gains != "follow" or cfg.ramp_coll_physics != "fixed"):
             raise ValueError("ramp options need ramp_final_energy_mev")
         return
-    if not (math.isfinite(cfg.ramp_final_energy_mev) and cfg.ramp_final_energy_mev > cfg.energy_mev):
-        raise ValueError("ramp_final_energy_mev must exceed energy_mev")
+    if not (math.isfinite(cfg.ramp_final_energy_mev) and cfg.ramp_final_energy_mev >= cfg.energy_mev):
+        raise ValueError("ramp_final_energy_mev must not be below energy_mev (equal: a flat ramp, the machinery with no acceleration)")
     if not (math.isfinite(cfg.ramp_time_s) and cfg.ramp_time_s > 0):
         raise ValueError("a ramp needs ramp_time_s > 0")
     if cfg.ramp_shape not in SHAPES or cfg.rf_programme not in RF_PROGRAMMES:
@@ -175,7 +175,12 @@ class Ramp:
         # programme f is the ring-average fraction when ramp_comp_ring_average; columns then carry f C/L_columns locally
         self.ring_to_local = 1.0
         if cfg.ramp_comp_ring_average and cfg.columns_enabled() and cfg.column_local_fraction is not None:
-            self.ring_to_local = cfg.circumference_m / float(lens.lengths.sum())
+            # with column ends the electrons fill only the electron regions: the ring share is that of the effective length
+            if cfg.cend_active():
+                from .driver import effective_lens_fraction
+                self.ring_to_local = cfg.column_local_fraction / effective_lens_fraction(cfg)
+            else:
+                self.ring_to_local = cfg.circumference_m / float(lens.lengths.sum())
         self.f = self._initial_fraction()
         self.f0 = self.f
         self.sigma_scale = 1.0
