@@ -7,8 +7,8 @@
  "duty": 0.3,
  "sigma_m": 0.03,
  "tune": 8.38,
- "tune_x": 8.25,
- "tune_y": 8.25,
+ "tune_x": 8.38,
+ "tune_y": 8.38,
  "particles_per_bunch": 524288,
  "grid": [
   96,
