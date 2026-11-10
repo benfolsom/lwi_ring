@@ -136,7 +136,7 @@ Enabled by `ramp_final_energy_mev` (the reference energy follows a programme ove
 `ramp_regrid_tol`, `ramp_wfb_gains` (follow, fixed: the wall-strip gain constants and time-based lengths at the present energy) and
 `ramp_coll_physics` (follow, fixed: foil scattering and energy loss at the present energy). Dynamic electrons follow the ramp, with
 recycling (`recycle_*`), wall-strip feedback, column ends and collimation; a ramp with `ramp_final_energy_mev = energy_mev` is flat
-(the ramp machinery without acceleration). `examples/ramp_leading_1x_q825_s1024.json` is a compressed 400 to 1500 MeV ramp of the leading configuration. The helper `presets.rescale_energy(cfg, energy_mev)` moves a case to another
+(the ramp machinery without acceleration). `examples/ramp_leading_1x_q838_s1024.json` is a compressed 400 to 1500 MeV ramp of the leading configuration. The helper `presets.rescale_energy(cfg, energy_mev)` moves a case to another
 kinetic energy (solenoid field times the rigidity ratio, population times β²γ³), and `presets.FIELD_2X`, `FIELD_1P5X` and
 `presets.station_positions` are the field-scaled lattices and station placement used in the feasibility study.
 

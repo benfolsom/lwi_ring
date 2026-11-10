@@ -72,13 +72,13 @@ send the files listed in section 4. It can be stopped and restarted from the beg
 
 ### Energy-ramp job: leading configuration, 400 to 1500 MeV
 
-`examples/ramp_leading_1x_q825_s1024.json` ramps the leading configuration (recycled streams, wall strips, column ends, collimation) from
+`examples/ramp_leading_1x_q838_s1024.json` ramps the leading configuration (recycled streams, wall strips, column ends, collimation) from
 400 to 1500 MeV in about 500 turns (520 turns in all, the last ones at constant energy), with the compensation fraction tapered to hold the
 residual space-charge tune shift, the column size shrinking adiabatically, an RF voltage that rises as needed (minimum-phase programme)
 and the strip gains and foil physics following the energy. It runs like the other jobs:
 
 ```bash
-nohup python -m lwi_ring.studyrun examples/ramp_leading_1x_q825_s1024.json ramp_leading_1x --shape --stop-growth=0.5 > ramp_leading_1x.log 2>&1 &
+nohup python -m lwi_ring.studyrun examples/ramp_leading_1x_q838_s1024.json ramp_leading_1x --shape --stop-growth=0.5 > ramp_leading_1x.log 2>&1 &
 ```
 
 The log's seconds per step give the run time (the job has 532 480 steps). `turns.json` carries a `ramp` entry per turn (energy, tunes,
